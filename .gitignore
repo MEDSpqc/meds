@@ -1,0 +1,5 @@
+.*.swp
+params.h
+bench.txt
+build/
+__pycache__/
