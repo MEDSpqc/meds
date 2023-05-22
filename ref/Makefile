@@ -33,11 +33,11 @@ HEADERS = $(wildcard *.h) params.h $(OBJDIR)/api.h
 BUILDOBJ := ${OBJECTS:%=$(OBJDIR)/%}
 
 
-params.h: gen_param.py params.py
-	python $< > $@
+params.h: params.py
+	python $< -p > $@
 
-$(OBJDIR)/api.h: gen_api.py params.py $(OBJDIR)
-	python $< $(PARAM) > $@
+$(OBJDIR)/api.h: params.py $(OBJDIR)
+	python $< -a $(PARAM) > $@
 
 
 $(EXES) : % :

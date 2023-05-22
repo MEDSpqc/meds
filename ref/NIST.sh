@@ -17,9 +17,9 @@ for p in `./params.py -l`; do
   ln -s NIST/rng.c MEDS/$v/$p/randombytes.c
   ln -s NIST/rng.h MEDS/$v/$p/randombytes.h
 
-  python gen_param.py $p > MEDS/$v/$p/params.h
+  ./params.py -p $p > MEDS/$v/$p/params.h
 
-  python gen_api.py $p > MEDS/$v/$p/api.h
+  ./params.py -a $p > MEDS/$v/$p/api.h
 
   cp NIST.mk MEDS/$v/$p/Makefile
 done

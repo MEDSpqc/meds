@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from dataclasses import dataclass
+from math import log
 from math import log2
 from math import ceil
 from math import comb
@@ -322,6 +323,118 @@ Local variables q, n, m, ... can be dumped via 'dump()'.
 (Exit python prompt with Ctrl-D)
 """)
 
+
+def gen_api(par_set):
+  if not par_set:
+    par_set = "toy"
+
+  par_set = par_list[par_set]
+  
+  print(f"""#ifndef API_H
+#define API_H
+
+#define CRYPTO_SECRETKEYBYTES {par_set.sk_size}
+#define CRYPTO_PUBLICKEYBYTES {par_set.pk_size}
+#define CRYPTO_BYTES {par_set.sig_size}
+
+#define CRYPTO_ALGNAME "{par_set.name}"
+
+int crypto_sign_keypair(
+    unsigned char *pk,
+    unsigned char *sk
+  );
+
+int crypto_sign(
+    unsigned char *sm, unsigned long long *smlen,
+    const unsigned char *m, unsigned long long mlen,
+    const unsigned char *sk
+  );
+
+int crypto_sign_open(
+    unsigned char *m, unsigned long long *mlen,
+    const unsigned char *sm, unsigned long long smlen,
+    const unsigned char *pk
+  );
+
+#endif
+""")
+
+def gen_param(parset):
+  print("#ifndef PARAMS_H")
+  print("#define PARAMS_H")
+  print()
+  
+  if not parset:
+    plist = params
+  else:
+    plist = [par_list[parset]]
+  
+  for param in plist:
+    if not parset:
+      print(f"#ifdef {param.name}")
+      ind = "  "
+    else:
+     ind = ""
+  
+    print(f'{ind}#define MEDS_name "{param.name}"')
+  
+    print()
+  
+    print(f"{ind}#define MEDS_digest_bytes {param.digest_bytes}")
+    print(f"{ind}#define MEDS_pub_seed_bytes {param.pub_seed_bytes}")
+    print(f"{ind}#define MEDS_sec_seed_bytes {param.sec_seed_bytes}")
+    print(f"{ind}#define MEDS_st_seed_bytes {param.st_seed_bytes}")
+  
+    print(f"{ind}#define MEDS_st_salt_bytes {param.st_salt_bytes}")
+  
+    print()
+  
+    print(f"{ind}#define MEDS_p {param.q}")
+    print(f"{ind}#define GFq_t uint{ceil(log(param.q, 256))*8}_t")
+    print(f"{ind}#define GFq_bits {ceil(log(param.q, 2))}")
+    print(f"{ind}#define GFq_bytes {ceil(ceil(log(param.q, 2))/8)}")
+  
+    print()
+  
+    print(f"{ind}#define MEDS_m {param.m}")
+    print(f"{ind}#define MEDS_n {param.n}")
+    print(f"{ind}#define MEDS_k {param.k}")
+  
+    print()
+  
+    print(f"{ind}#define MEDS_s {param.s}")
+    print(f"{ind}#define MEDS_t {param.t}")
+    print(f"{ind}#define MEDS_w {param.w}")
+  
+    print()
+  
+    print(f"{ind}#define MEDS_seed_tree_height {ceil(log(param.t, 2))}")
+    print(f"{ind}#define SEED_TREE_size {((1 << (ceil(log(param.t, 2)) + 1)) - 1)}")
+  
+    print(f"{ind}#define MEDS_max_path_len {param.seed_max_tree_len}")
+  
+    print()
+  
+    print(f"{ind}#define MEDS_t_mask 0x{2**ceil(log(param.t, 2)) - 1:08X}")
+    print(f"{ind}#define MEDS_t_bytes {ceil(log(param.t-1, 2)/8)}")
+    print()
+    print(f"{ind}#define MEDS_s_mask 0x{2**ceil(log(param.s, 2)) - 1:08X}")
+  
+    print()
+     
+    print(f"{ind}#define MEDS_PK_BYTES {param.pk_size}")
+    print(f"{ind}#define MEDS_SK_BYTES {param.sk_size}")
+    print(f"{ind}#define MEDS_SIG_BYTES {param.sig_size}")
+  
+    if not parset:
+      print(f"#endif")
+    print()
+  
+  print("#endif")
+  print()
+
+
+
 if __name__ == "__main__":
   import argparse
 
@@ -330,6 +443,9 @@ if __name__ == "__main__":
   parser.add_argument("-t", "--table", action='store_true', help = "print Latex table")
   parser.add_argument("-l", "--list", action='store_true', help = "list param set names")
   parser.add_argument("-i", "--interactive", action='store_true', help = "interactive python console")
+  parser.add_argument("-a", "--api", action='store_true', help = "generate api.h")
+  parser.add_argument("-p", "--param", action='store_true', help = "generate param.h")
+  parser.add_argument('parset', nargs='?', help = "parameter set", default=None)
 
   args = parser.parse_args()
 
@@ -339,6 +455,10 @@ if __name__ == "__main__":
     print_list()
   elif args.interactive:
     interactive()
+  elif args.api:
+    gen_api(args.parset)
+  elif args.param:
+    gen_param(args.parset)
   else:
     print_table()
 
