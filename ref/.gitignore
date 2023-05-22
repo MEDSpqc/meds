@@ -1,0 +1,9 @@
+.*.swp
+*.req
+*.rsp
+bench.txt
+params.h
+build/
+debug/
+__pycache__/
+MEDS/
