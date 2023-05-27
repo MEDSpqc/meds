@@ -6,7 +6,7 @@ This is the MEDS implementation accompanying the Africacrypt paper:
   Tovohery Hajatiana Randrianarisoa, Krijn Reijnders, Simona Samardjiska,
   and Monika Trimoska:
   *"Take your MEDS: Digital Signatures from Matrix Code Equivalence"*.
-  Progress in Cryptology - AfricaCrypt 2022.
+  Progress in Cryptology - AfricaCrypt 2023.
   Lecture Notes in Computer Science, Springer, 2023.
 
 ## How to compile the code
