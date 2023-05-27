@@ -9,7 +9,7 @@ The source code accompanying the Africacrypt 2023 paper:
   Tovohery Hajatiana Randrianarisoa, Krijn Reijnders, Simona Samardjiska,
   and Monika Trimoska:
   *"Take your MEDS: Digital Signatures from Matrix Code Equivalence"*.
-  Progress in Cryptology - AfricaCrypt 2022.
+  Progress in Cryptology - AfricaCrypt 2023.
   Lecture Notes in Computer Science, Springer, 2023.
 
 is in branch `Africacrypt`.
