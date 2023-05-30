@@ -60,7 +60,7 @@ RUN: test
 RUN_ALL:
 	for p in `./params.py -l`; do \
 	echo "\nRunning par set" $$p; \
-	make run PARAM=$$p; \
+	make RUN PARAM=$$p; \
 	echo ""; \
 	done;
 

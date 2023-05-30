@@ -197,26 +197,26 @@ params = [
         sec_seed_bytes = 256 >> 3,
         st_seed_bytes = 256 >> 3,
         st_salt_bytes = 256 >> 3,
-        q = 16381,
-        m = 25,
-        n = 25,
-        k = 25,
-        s = 4,
-        t = 768,
-        w = 35),
+        q = 2039,
+        m = 30,
+        n = 30,
+        k = 30,
+        s = 5,
+        t = 192,
+        w = 52),
 
   Param(digest_bytes = 256 >> 3,
         pub_seed_bytes = 256 >> 3,
         sec_seed_bytes = 256 >> 3,
         st_seed_bytes = 256 >> 3,
         st_salt_bytes = 256 >> 3,
-        q = 16381,
-        m = 25,
-        n = 25,
-        k = 25,
-        s = 5,
-        t = 304,
-        w = 42),
+        q = 2039,
+        m = 30,
+        n = 30,
+        k = 30,
+        s = 6,
+        t = 112,
+        w = 66),
 
 # toy
 
@@ -250,11 +250,12 @@ def print_table():
     fs = -param.fiat_shamir
 
     pk =  param.pk_size
+    sk =  param.sk_size
     sig = param.sig_size
 
-    tab.append([param, param.q, param.n, param.m, param.k, param.s, param.t, param.w, pk, sig, fs])
+    tab.append([param, param.q, param.n, param.m, param.k, param.s, param.t, param.w, pk, sk, sig, fs])
 
-  headers = ["set", "q", "n", "m", "k", "s", "t", "w", "pk", "sig", "fs"]
+  headers = ["set", "q", "n", "m", "k", "s", "t", "w", "pk", "sk", "sig", "fs"]
 
   tab = tabulate(tab, headers, tablefmt="latex_booktabs")
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 for p in `./params.py -l`; do
-  v=ref
+  v=Reference_Implementation
 
   mkdir -p MEDS/$v/$p
 
@@ -24,5 +24,5 @@ for p in `./params.py -l`; do
   cp NIST.mk MEDS/$v/$p/Makefile
 done
 
-ln -s ref MEDS/opt
+ln -s $v MEDS/Optimized_Implementation
 
