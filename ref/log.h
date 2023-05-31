@@ -74,7 +74,7 @@
 #define LOG_VEC_FMT(v, len, fmt, ...) do { } while(0);
 
 #define LOG_HEX(v, len, ...) do { } while(0);
-#define LOG_HEX(v, len, fmt, ...) do { } while(0);
+#define LOG_HEX_FMT(v, len, fmt, ...) do { } while(0);
 
 #define LOG_MAT(v, m, n, ...) do { } while(0);
 #define LOG_MAT_FMT(v, m, n, fmt, ...) do { } while(0);
