@@ -1,3 +1,5 @@
+#!/usr/bin/env sage
+
 import sys, random, string, base64, secrets, binascii
 import logging
 
