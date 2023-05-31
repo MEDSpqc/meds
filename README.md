@@ -4,6 +4,10 @@
 This repository procides the reference implentation of the PQC signature scheme MEDS
 as submitted to the NIST PQC Signature standardization process.
 
+The website accompanying the MEDS submission is [meds-pqc.org](https://www.meds-pqc.org/).
+
+The submission document with the MEDS specificaiton can be found [here](https://www.meds-pqc.org/spec/MEDS-2023-05-31.pdf).
+
 ## Compile
 
 The reference implementation in directory `/ref` can be compiled
