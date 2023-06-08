@@ -11,7 +11,8 @@ class BitStream:
     self.bit_pos = 0
 
   def finalize(self):
-    self.bit_pos = 8
+    if self.bit_pos > 0:
+      self.bit_pos = 8
 
   def write(self, data, data_len):
     byte_pos = len(self.data) - 1

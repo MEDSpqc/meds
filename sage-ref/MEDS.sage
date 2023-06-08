@@ -213,7 +213,7 @@ class MEDSbase:
     s = self.params.s
     w = self.params.w
 
-    logging.debug(f"digest: {[int(v) for v in digest]}")
+    logging.debug(f"digest: %s", [int(v) for v in digest])
     logging.debug("digest len: %i", len(digest))
   
     shake = SHAKE256.new()
@@ -353,17 +353,33 @@ class MEDSbase:
 
     logging.debug(f"M:\n%s", M)
 
-    _, _, M = M.LU()
+    Ms = M.matrix_from_rows_and_columns(range(M.nrows()-1), range(M.ncols()))
 
-    for i in range(n):
-      M.set_row_to_multiple_of_row(i, i, 1/M[i,i])
-    logging.debug(f"M:\n%s", M) 
+    Ms = Ms.rref()
+    M = Ms.stack(M.rows()[-1])
+
+    if not all([Ms[i,i] == 1 for i in range(n-1)]):
+      return None, None
+
+    logging.debug(f"M part:\n%s", M)
+
+    for i in range(n-1):
+      M.add_multiple_of_row(n-1, i, -M[n-1,i])
+
+    if M[n-1,n-1] == 0:
+      return None, None
+
+    M.set_row_to_multiple_of_row(n-1, n-1, 1/M[n-1,n-1])
 
     M[-1, -1] = GFq(0)
-    logging.debug(f"M:\n%s", M) 
 
-    M = M.rref()
-    logging.debug(f"M:\n%s", M) 
+    logging.debug(f"M red:\n%s", M) 
+
+    for i in range(n-1):
+      M.add_multiple_of_row(i, n-1, -M[i,n-1])
+
+    logging.debug(f"M done:\n%s", M) 
+
 
     sol = [0] * (n*n + m*m)
 
@@ -588,8 +604,8 @@ class MEDSbase:
 
     pub_seed, sec_seed, root_seed = self.XOF(root_seed, [param.pub_seed_bytes, param.sec_seed_bytes, param.sec_seed_bytes])
 
-    logging.debug(f"sigma:\n{[int(i) for i in sec_seed]}")
-    logging.debug(f"sigma_G0:\n{[int(i) for i in pub_seed]}")
+    logging.debug(f"sigma:\n%s", [int(i) for i in sec_seed])
+    logging.debug(f"sigma_G0:\n%s", [int(i) for i in pub_seed])
 
     G[0] = MEDSbase.rnd_sys_matrix(pub_seed, GFq, k, m, n)
     
@@ -614,6 +630,9 @@ class MEDSbase:
 
         A, B_inv[i] = self.solve(G0prime, Ti, Amm)
 
+        if A == None and B_inv[i] == None:
+          logging.debug("no sol")
+          continue  # try agian for this index
 
         if not B_inv[i].is_invertible():
           logging.debug("no B")
@@ -660,10 +679,10 @@ class MEDSbase:
 
     pk = pub_seed + comp
 
-    logging.debug(f"sigma_G0 (pk):\n{[int(i) for i  in pub_seed]}")
-    logging.debug(f"G[1:] (pk):\n{[int(j) for j in comp]}")
+    logging.debug(f"sigma_G0 (pk):\n%s", [int(i) for i in pub_seed])
+    logging.debug(f"G[1:] (pk):\n%s", [int(j) for j in comp])
 
-    logging.debug(f"pk:\n0x{binascii.hexlify(pk).decode()}")
+    logging.debug(f"pk:\n0x%s", binascii.hexlify(pk).decode())
 
   
     bs = bitstream.BitStream()
@@ -682,7 +701,7 @@ class MEDSbase:
 
     sk = root_seed + pub_seed + bs.data
 
-    logging.debug(f"sk:\n0x{binascii.hexlify(sk).decode()}")
+    logging.debug(f"sk:\n0x%s", binascii.hexlify(sk).decode())
 
     return sk, pk
   
@@ -732,7 +751,7 @@ class MEDSbase:
     G_0 = MEDSbase.rnd_sys_matrix(pub_seed, GFq, k, m, n)
   
     logging.debug(f"G_0:\n%s", G_0)
-    logging.debug(f"delta:\n{[int(i) for i in initial_seed]}")
+    logging.debug(f"delta:\n%s", [int(i) for i in initial_seed])
   
     st_root, self.st_salt = self.XOF(initial_seed, [param.st_seed_bytes, param.st_salt_bytes])
     seeds = SeedTree(t, st_root, self.hash_pair)
@@ -783,7 +802,7 @@ class MEDSbase:
   
     digest = self.hash(comp + msg)
   
-    logging.debug(f"digest:\n{[int(i) for i in digest]}")
+    logging.debug(f"digest:\n%s", [int(i) for i in digest])
 
     h = self.parse_hash(digest) #, t, s, w)
   
@@ -816,7 +835,7 @@ class MEDSbase:
 
     ret += msg
   
-    logging.debug(f"sm:\n0x{binascii.hexlify(ret).decode()}")
+    logging.debug(f"sm:\n0x%s", binascii.hexlify(ret).decode())
   
     return ret
   
@@ -835,8 +854,8 @@ class MEDSbase:
     GF_BYTES = ceil(log(q, 2) / 8)
     GF_BITS = ceil(log(q, 2))
 
-    logging.debug(f"pk:\n0x{binascii.hexlify(pk).decode()}")
-    logging.debug(f"sm:\n0x{binascii.hexlify(sig).decode()}")
+    logging.debug(f"pk:\n0x%s", binascii.hexlify(pk).decode())
+    logging.debug(f"sm:\n0x%s", binascii.hexlify(sig).decode())
 
     I_k = matrix.identity(ring=GFq, n=k)
   
@@ -889,10 +908,10 @@ class MEDSbase:
     digest = sig[:param.digest_bytes]; sig = sig[param.digest_bytes:]
     self.st_salt = sig[:param.st_salt_bytes]; msg = sig[param.st_salt_bytes:]
     
-    logging.debug(f"munu:\n0x{binascii.hexlify(munu).decode()}")
-    logging.debug(f"path:\n0x{binascii.hexlify(path).decode()}")
-    logging.debug(f"digest:\n0x{binascii.hexlify(digest).decode()}")
-    logging.debug(f"alpha:\n0x{binascii.hexlify(self.st_salt).decode()}")
+    logging.debug(f"munu:\n0x%s", binascii.hexlify(munu).decode())
+    logging.debug(f"path:\n0x%s", binascii.hexlify(path).decode())
+    logging.debug(f"digest:\n0x%s", binascii.hexlify(digest).decode())
+    logging.debug(f"alpha:\n0x%s", binascii.hexlify(self.st_salt).decode())
 
     #digest = sig[param.sig_size-param.digest_bytes-param.st_salt_bytes:param.sig_size-param.st_salt_bytes]
     #self.st_salt = sig[param.sig_size-param.st_salt_bytes:param.sig_size]
@@ -910,17 +929,17 @@ class MEDSbase:
   
     for i, h_i in enumerate(h):
       if h_i == 0:
-        logging.debug(f"seeds[{i}]:\n{[int(v) for v in seeds[i]]}")
+        logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in seeds[i]])
   
         seed = seeds[i]
     
         while True:
           pub_seed_A_tilde, pub_seed_B_tilde, seed = self.XOF(seed, [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
   
-          logging.debug(f"sigma_A_tilde[{i}]:\n{[int(i) for i in pub_seed_A_tilde]}")
+          logging.debug(f"sigma_A_tilde[{i}]:\n%s", [int(i) for i in pub_seed_A_tilde])
           A_tilde = MEDSbase.rnd_inv_matrix(pub_seed_A_tilde, self.GFq, m)
 
-          logging.debug(f"sigma_B_tilde[{i}]:\n{[int(i) for i in pub_seed_B_tilde]}")
+          logging.debug(f"sigma_B_tilde[{i}]:\n%s", [int(i) for i in pub_seed_B_tilde])
           B_tilde = MEDSbase.rnd_inv_matrix(pub_seed_B_tilde, self.GFq, n)
 
           logging.debug(f"A_tilde[{i}]:\n%s", A_tilde)
