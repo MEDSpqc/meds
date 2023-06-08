@@ -3,6 +3,8 @@
 import sys, random, string, base64, secrets, binascii
 import logging
 
+from multiprocessing import Pool
+
 import MEDS
 import params
 
@@ -11,6 +13,42 @@ import argparse
 import os.path as path
 
 import randombytes
+
+
+class Task:
+  def init(self):
+    self.count = None
+    self.seed = None
+    self.pk = None
+    self.sk = None
+    self.msg = None
+    self.sm = None
+
+
+def check(t):
+  ret = str(t.count)
+
+  randombytes.randombytes_init(t.seed, None, 256)
+
+  meds = MEDS.MEDS(args.parset, randombytes)
+
+  meds.crypto_sign_keypair()
+
+  assert t.pk == meds.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(meds.pk).decode()}"
+
+  assert t.sk == meds.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(meds.sk).decode()}"
+
+  tmp = meds.crypto_sign(t.msg)
+
+  assert tmp == t.sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
+
+  tmp = meds.crypto_sign_open(t.sm)
+
+  assert tmp == t.msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
+
+  ret += " ok\n"
+
+  return ret
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
@@ -40,48 +78,48 @@ if __name__ == "__main__":
     logger.setLevel("DEBUG")
     logger.addHandler(handler)
  
+  t = None
 
-  with open(args.katfile, "r") as rsp:
-    for line in rsp:
+  with Pool() as pool:
+    procs = []
+
+    with open(args.katfile, "r") as rsp:
+      for line in rsp:
   
-      if line.startswith("#"):
-        continue
+        if line.startswith("#"):
+          continue
   
-      if line.startswith("count "):
-        print(line.strip())
+        if line.startswith("count "):
+          t = Task()
+
+          t.count = line.strip()
   
-      if line.startswith("seed "):
-        seed = binascii.unhexlify(line[7:].strip())
+        if line.startswith("seed "):
+          t.seed = binascii.unhexlify(line[7:].strip())
 
-        randombytes.randombytes_init(seed, None, 256)
+        if line.startswith("pk "):
+          t.pk = binascii.unhexlify(line[5:].strip())
 
-        meds = MEDS.MEDS(args.parset, randombytes)
 
-        meds.crypto_sign_keypair()
+        if line.startswith("sk "):
+          t.sk = binascii.unhexlify(line[5:].strip())
 
-      if line.startswith("pk "):
-        pk = binascii.unhexlify(line[5:].strip())
 
-        assert pk == meds.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(meds.pk).decode()}"
+        if line.startswith("msg "):
+          t.msg = binascii.unhexlify(line[6:].strip())
 
-      if line.startswith("sk "):
-        sk = binascii.unhexlify(line[5:].strip())
+        if line.startswith("sm "):
+          t.sm = binascii.unhexlify(line[5:].strip())
 
-        assert sk == meds.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(meds.sk).decode()}"
+          procs.append(pool.apply_async(check, [t]))
 
-      if line.startswith("msg "):
-        msg = binascii.unhexlify(line[6:].strip())
+    for proc in procs:
+      value = proc.get()
 
-      if line.startswith("sm "):
-        sm = binascii.unhexlify(line[5:].strip())
+      print(value)
 
-        tmp = meds.crypto_sign(msg)
+    pool.close()
 
-        assert tmp == sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
+    pool.join()
 
-        tmp = meds.crypto_sign_open(sm)
-
-        assert tmp == msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
-
-        print("ok\n")
 
