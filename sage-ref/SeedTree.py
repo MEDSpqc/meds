@@ -96,7 +96,7 @@ class Node:
         self.update(path[0], f, h, i)
         path = path[1:]
     except IndexError: pass
- 
+
     return path
 
 
@@ -129,7 +129,7 @@ class SeedTree:
     while stack[i].left:
       stack.append(stack[i].left)
       stack.append(stack[i].right)
-  
+
       i = i + 1
 
     ret = ""
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     digest = shake.read(256>>3)
 
     return digest[:16], digest[16:]
-  
+
   seed = random.randbytes(16)
 
   #seed = b'deadbeefdeadbeef'
@@ -170,13 +170,13 @@ if __name__ == "__main__":
 
   ## signer side
   tree = SeedTree(leafs, seed, hash_pair)
-  
+
   print(tree.tree())
-  
+
   for i in range(leafs):
     print(tree[i].hex())
-  
-  
+
+
   # tree.delete(5)
   # tree.delete(8)
   # tree.delete(12)
@@ -184,37 +184,37 @@ if __name__ == "__main__":
   tree[2] = bytes([0xf0]*42)
   tree[8] = bytes([0xf1]*42)
   tree[12] = bytes([0xf2]*42)
-  
+
   print()
-  
+
   print(tree.tree())
-  
+
   for i in range(leafs):
     print(tree[i].hex() if type(tree[i]) == bytes else "--")
-  
-  
+
+
   print()
-  
+
   path = tree.path()
-  
+
   print("\npath:\n")
   print("\n".join([v.hex() for v in path]))
-  
-  
+
+
   ## verifier side
   tree2 = SeedTree(leafs)
-  
+
   tree2.delete(2)
   tree2.delete(8)
   tree2.delete(12)
 
- 
+
   print(tree2.tree())
-  
+
   tree2.patch(path, hash_pair)
-  
+
   print(tree2.tree())
-  
+
   for i in range(leafs):
     print(tree2[i].hex() if type(tree2[i]) == bytes else "--")
 

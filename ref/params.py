@@ -83,9 +83,9 @@ class Param:
     st_seed_bytes = self.st_seed_bytes
     t = self.t
     w = self.w
-  
+
     return (2**ceil(log2(w)) + w * (ceil(log2(t)) - ceil(log2(w)) - 1))
-  
+
   @property
   def sig_size(self):
     digest_bytes = self.digest_bytes
@@ -121,15 +121,15 @@ class Param:
     print(f"t = {self.t:>3}")
     print(f"w = {self.w:>3}")
     print(f"k = {self.k:>3}")
-    
+
     print()
-  
+
     print(f"pk size:      {self.pk_size:7}")
     print(f"max sig size: {self.sig_size:7}")
     print(f"sum:          {self.pk_size + self.sig_size:7}")
-    
+
     print()
-    
+
     print(f"FS security:   {self.fiat_shamir:12.5f}")
 
     print()
@@ -239,11 +239,11 @@ for i, p in enumerate(params):
   exec(f"{p.name} = params[i]")
 
 par_list = {p.name : p for p in params}
- 
+
 
 def print_table():
   from tabulate import tabulate
-  
+
   tab = []
 
   for param in params:
@@ -270,7 +270,7 @@ def interactive():
 
   def inject_params(param):
     global digest_bytes, pub_seed_bytes, sec_seed_bytes, st_seed_bytes, st_salt_bytes, q, n, m, s, t, w, k
- 
+
     digest_bytes = param.digest_bytes
     pub_seed_bytes = param.pub_seed_bytes
     sec_seed_bytes = param.sec_seed_bytes
@@ -292,7 +292,7 @@ def interactive():
       sig_size: int
 
     tmp = TMP(100000000000000)
-  
+
     for t in range_t:
       for w in range(1, min(t, 100)):
         loc = Param(digest_bytes, pub_seed_bytes, sec_seed_bytes, st_seed_bytes, st_salt_bytes, q, n, m, s, t, w, k)
@@ -300,7 +300,7 @@ def interactive():
         if loc.fiat_shamir > st_seed_bytes*8:
           if loc.sig_size < tmp.sig_size:
             tmp = loc
-  
+
     print(f"sig size: {tmp.sig_size}  pk size: {tmp.pk_size} -> t = {tmp.t}, w = {tmp.w}")
 
   def dump():
@@ -309,10 +309,10 @@ def interactive():
   import code
   import readline
   import rlcompleter
-             
+
   vars = globals()
   vars.update(locals())
-                                                
+
   readline.set_completer(rlcompleter.Completer(vars).complete)
   readline.parse_and_bind("tab: complete")
   code.InteractiveConsole(vars).interact(banner="""
@@ -330,7 +330,7 @@ def gen_api(par_set):
     par_set = "toy"
 
   par_set = par_list[par_set]
-  
+
   print(f"""#ifndef API_H
 #define API_H
 
@@ -364,73 +364,73 @@ def gen_param(parset):
   print("#ifndef PARAMS_H")
   print("#define PARAMS_H")
   print()
-  
+
   if not parset:
     plist = params
   else:
     plist = [par_list[parset]]
-  
+
   for param in plist:
     if not parset:
       print(f"#ifdef {param.name}")
       ind = "  "
     else:
      ind = ""
-  
+
     print(f'{ind}#define MEDS_name "{param.name}"')
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_digest_bytes {param.digest_bytes}")
     print(f"{ind}#define MEDS_pub_seed_bytes {param.pub_seed_bytes}")
     print(f"{ind}#define MEDS_sec_seed_bytes {param.sec_seed_bytes}")
     print(f"{ind}#define MEDS_st_seed_bytes {param.st_seed_bytes}")
-  
+
     print(f"{ind}#define MEDS_st_salt_bytes {param.st_salt_bytes}")
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_p {param.q}")
     print(f"{ind}#define GFq_t uint{ceil(log(param.q, 256))*8}_t")
     print(f"{ind}#define GFq_bits {ceil(log(param.q, 2))}")
     print(f"{ind}#define GFq_bytes {ceil(ceil(log(param.q, 2))/8)}")
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_m {param.m}")
     print(f"{ind}#define MEDS_n {param.n}")
     print(f"{ind}#define MEDS_k {param.k}")
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_s {param.s}")
     print(f"{ind}#define MEDS_t {param.t}")
     print(f"{ind}#define MEDS_w {param.w}")
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_seed_tree_height {ceil(log(param.t, 2))}")
     print(f"{ind}#define SEED_TREE_size {((1 << (ceil(log(param.t, 2)) + 1)) - 1)}")
-  
+
     print(f"{ind}#define MEDS_max_path_len {param.seed_max_tree_len}")
-  
+
     print()
-  
+
     print(f"{ind}#define MEDS_t_mask 0x{2**ceil(log(param.t, 2)) - 1:08X}")
     print(f"{ind}#define MEDS_t_bytes {ceil(log(param.t-1, 2)/8)}")
     print()
     print(f"{ind}#define MEDS_s_mask 0x{2**ceil(log(param.s, 2)) - 1:08X}")
-  
+
     print()
-     
+
     print(f"{ind}#define MEDS_PK_BYTES {param.pk_size}")
     print(f"{ind}#define MEDS_SK_BYTES {param.sk_size}")
     print(f"{ind}#define MEDS_SIG_BYTES {param.sig_size}")
-  
+
     if not parset:
       print(f"#endif")
     print()
-  
+
   print("#endif")
   print()
 

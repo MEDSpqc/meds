@@ -24,19 +24,19 @@ class BadSignatureError(Exception):
 
 class redo(Exception):
   pass
- 
+
 
 class MEDSbase:
   ENDIANESS = 'little'
-  
+
   @staticmethod
   def int_to_bytes(i, length):
       return i.to_bytes(length, MEDSbase.ENDIANESS)
-      
+
   @staticmethod
   def bytes_to_int(bs):
       return int.from_bytes(bs, MEDSbase.ENDIANESS)
-  
+
   @staticmethod
   def matrix_to_bytes(m):
     GFq = m[0,0].base_ring()
@@ -45,7 +45,7 @@ class MEDSbase:
       return b"".join([MEDSbase.int_to_bytes(int(j), GF_BYTES) for v in m.rows() for j in v])
     else:
       return bytes([j.integer_representation() for v in m.rows() for j in v])
-  
+
   @staticmethod
   def matrix_to_bits(m, bs):
     GFq = m[0,0].base_ring()
@@ -55,11 +55,11 @@ class MEDSbase:
         bs.write(int(v), GF_BITS)
     else:
       raise "Not implemented..."
- 
+
   @staticmethod
   def bytes_to_matrix(GFq, bs, m=0, n=0):
     GF_BYTES = ceil(log(GFq.base().order(),2)/8)
-  
+
     if m == 0:
       m = sqrt(len(bs)/GF_BYTES)
       n = m
@@ -68,7 +68,7 @@ class MEDSbase:
       data = [MEDSbase.bytes_to_int(bs[i:i + GF_BYTES]) for i in range(0, len(bs), GF_BYTES)]
     else:
       data = [GFq.fetch_int(b) for b in bs]
-  
+
     return matrix(GFq, m, n, data)
 
   cache = {}
@@ -107,7 +107,7 @@ class MEDSbase:
 
     return tuple(data[sum(length[:i]):sum(length[:i+1])] for i in range(len(length)))
 
- 
+
   @staticmethod
   def rnd_inv_matrix_pair(seed, GFq, n):
     if type(seed) == SHAKE256.SHAKE256_XOF:
@@ -115,10 +115,10 @@ class MEDSbase:
     else:
       shake = SHAKE256.new()
       shake.update(seed)
-  
+
     while True:
       M = MEDSbase.rnd_matrix(shake, GFq, n, n)
-    
+
       if M.is_invertible():
         return M, M.inverse()
 
@@ -129,43 +129,43 @@ class MEDSbase:
     else:
       shake = SHAKE256.new()
       shake.update(seed)
-  
+
     while True:
       M = MEDSbase.rnd_matrix(shake, GFq, n, n)
-    
+
       if M.is_invertible():
         return M
-  
+
     ## L = matrix(GFq, n, n)
-  
+
     ## for i in range(n):
     ##   L[i,i] = 1
     ##   for j in range(i+1, n):
     ##     L[j,i] = MEDSbase.rnd_GFq(shake, GFq)
-  
+
     ## logging.debug(f"L:\n%s", L)
-  
+
     ## U = matrix(GFq, n, n)
-  
+
     ## for i in range(n):
     ##   # get only non-zero values for the diagonal
     ##   U[i, i] = MEDSbase.rnd_GFq(shake, GFq, 1)
-  
+
     ##   for j in range(i+1, n):
     ##     U[i,j] = MEDSbase.rnd_GFq(shake, GFq)
-  
+
     ## logging.debug(f"U:\n%s", U)
-  
+
     ## # There is a small bias - since we do not apply a permutation!
     ## return L*U
-  
+
   @staticmethod
   def rnd_matrix(shake, GFq, m, n=None):
     if not n:
       n = m
-  
+
     return matrix(GFq, m, n, [MEDSbase.rnd_GFq(shake, GFq) for i in range(m*n)])
-  
+
   @staticmethod
   def rnd_sys_matrix(seed, GFq, k, m, n):
     if type(seed) == SHAKE256.SHAKE256_XOF:
@@ -173,9 +173,9 @@ class MEDSbase:
     else:
       shake = SHAKE256.new()
       shake.update(seed)
-   
+
     I_k = matrix.identity(ring=GFq, n=k)
-  
+
     return I_k.augment(MEDSbase.rnd_matrix(shake, GFq, k, m*n-k))
 
 
@@ -185,13 +185,13 @@ class MEDSbase:
     q = params.q
     w = params.w
     t = params.t
-    
+
     self.GFq = GF(q)
-    
+
     self.GF_BYTES = ceil(log(q, 2) / 8)
 
     self.rng = rng
-    
+
     self.MEDSbase_MAX_PATH_LEN = ((1 << ceil(log(w, 2))) + w * (ceil(log(t, 2)) - ceil(log(w, 2)) - 1))
 
 
@@ -200,11 +200,11 @@ class MEDSbase:
     shake.update(m)
 
     return shake.read(self.params.digest_bytes)
-  
+
   def hash_pair(self, value, addr):
     shake = SHAKE256.new()
     shake.update(self.st_salt + value + self.int_to_bytes(addr, 4))
-  
+
     return shake.read(self.params.st_seed_bytes), shake.read(self.params.st_seed_bytes)
 
 
@@ -215,11 +215,11 @@ class MEDSbase:
 
     logging.debug(f"digest: %s", [int(v) for v in digest])
     logging.debug("digest len: %i", len(digest))
-  
+
     shake = SHAKE256.new()
-  
+
     shake.update(digest)
-  
+
     h = [0] * t
 
     num = 0
@@ -229,17 +229,17 @@ class MEDSbase:
 
       if pos >= t:
         continue
-  
+
       if h[pos] > 0:
         continue  
-  
+
       logging.debug(f"pos: {pos}")
-  
+
       val = 0
-  
+
       while val < 1 or val > s-1:
         val = MEDSbase.bytes_to_int(shake.read(ceil(log(s,2)/8))) & ((1 << ceil(log(s,2))) - 1)
-  
+
       h[pos] = val
 
       logging.debug(f"p: {pos}  v: {val}")
@@ -248,7 +248,7 @@ class MEDSbase:
 
     return h
 
-   
+
   def seeds_from_path(self, h, path):
     q = self.params.q
     m = self.params.m
@@ -265,25 +265,25 @@ class MEDSbase:
 
     # prepare tree structure
     seeds = SeedTree(t, param.st_seed_bytes)
-  
+
     for i, v in enumerate(h):
       if v > 0:
         #seeds[i] = (n*n + m*m)*GF_BYTES
         seeds[i] = -1 #ceil((n*n + m*m)*log(q, 2)/8)
-    
+
     parsed = []
 
     for i, v in enumerate(seeds.path()):
       if v > 0:
         parsed.append(path[:v])
-      
+
         path = path[v:]
       else:
         parsed.append(None)
 
     # apply patch once tree structure is set up
     seeds.patch(parsed, self.hash_pair)
-  
+
     return seeds
 
 
@@ -291,13 +291,13 @@ class MEDSbase:
     m = self.params.m
     n = self.params.n
     k = self.params.k
-  
+
     GFq = A[0,0].base_ring()
-  
+
     G = [matrix(GFq, m, n, row) for row in G.rows()]
-  
+
     AGB = [A*v*B for v in G]
-  
+
     return matrix(GFq, k, m*n, [AGB[i][j,g] for i in range(k) for j in range(m) for g in range(n)])
 
   def randombytes(self, nbytes):
@@ -450,17 +450,17 @@ class MEDSbase:
     R = PolynomialRing(GFq, m*m + n*n,
        names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
              + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
-    
+
     A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
     B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
-    
+
     A[m-1,m-1] = Amm
-    
+
     eqs1 = Pj[0] * B_inv - A*P0prime[0]
     eqs2 = Pj[1] * B_inv - A*P0prime[1]
-    
+
     eqs = eqs1.coefficients() + eqs2.coefficients()[:-1]
-    
+
     rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()[:-1]] + [-eq.constant_coefficient()] for eq in eqs])
 
     rsys_rref = rsys.rref()
@@ -478,7 +478,7 @@ class MEDSbase:
     logging.debug(f"B_inv:\n%s", B_inv)
 
     return A, B_inv
- 
+
   def solve_comp(self, G0prime, Amm):
     q = self.params.q
     m = self.params.m
@@ -502,33 +502,33 @@ class MEDSbase:
     for l in range(n):
       for j in range(m):
         tmp = [GFq(0)] * (m^2 + n^2)
-        
+
         for i in range(m):
           tmp[m*m + l*m + i] = - P0prime[0][i,j]
-        
+
         for i in range(n):
           tmp[i*n + j] = Pj[0][l,i]
-        
+
         if l == n-1:
           tmp[m*m + n*n - 1] = Amm * P0prime[0][n-1,j]
-      
+
         rsys.append(tmp)
-    
+
     for l in range(n):
       for j in range(m if l < n-1 else m-1):
         tmp = [GFq(0)] * (m^2 + n^2)
-        
+
         for i in range(m):
           tmp[m*m + l*m + i] = - P0prime[1][i,j]
-        
+
         for i in range(n):
           tmp[i*n + j] = Pj[1][l,i]
-        
+
         if l == n-1:
           tmp[m*m + n*n - 1] = Amm * P0prime[1][n-1,j]
-      
+
         rsys.append(tmp)
- 
+
     rsys = matrix(GFq, ncols=m^2 + n^2, entries=rsys)
 
     rsys_rref = rsys.rref()
@@ -538,7 +538,7 @@ class MEDSbase:
       return None, None
 
     sol = rsys_rref.columns()[-1].list()
-    
+
     A = matrix(GFq, m, sol[n*n:] + [Amm])
     B_inv = matrix(GFq, m, sol[:n*n])
 
@@ -546,7 +546,7 @@ class MEDSbase:
     logging.debug(f"B_inv:\n%s", B_inv)
 
     return A, B_inv
- 
+
   def crypto_sign_keypair(self):
     global write_rest
 
@@ -570,7 +570,7 @@ class MEDSbase:
     A_inv = [None] * s
     B_inv = [None] * s
     G = [None] * s
-  
+
 
     pub_seed, sec_seed, root_seed = self.XOF(root_seed, [param.pub_seed_bytes, param.sec_seed_bytes, param.sec_seed_bytes])
 
@@ -578,23 +578,23 @@ class MEDSbase:
     logging.debug(f"sigma_G0:\n%s", [int(i) for i in pub_seed])
 
     G[0] = MEDSbase.rnd_sys_matrix(pub_seed, GFq, k, m, n)
-    
+
     logging.debug(f"G[0]:\n%s", G[0])
-    
+
     for i in range(1, s):
       while True: # repeat until A[i] and B[i] are invertible and G[i] has systematic form
         sec_seed_GFqs, sec_seed_T, sec_seed = self.XOF(sec_seed, [param.sec_seed_bytes, param.sec_seed_bytes, param.sec_seed_bytes])
 
         Ti = MEDSbase.rnd_inv_matrix(sec_seed_T, GFq, k)
         logging.debug(f"Ti:\n%s", Ti)
-    
+
         sec_GFqs = MEDSbase.rnd_GFqs(sec_seed_GFqs, GFq, [1])
 
         Amm = sec_GFqs[0][0]
         logging.debug(f"Amm:\n{Amm}")
 
         G0prime = Ti * G[0]
-        
+
         logging.debug(f"G0prime:\n%s", G0prime)
 
 
@@ -607,23 +607,23 @@ class MEDSbase:
         if not B_inv[i].is_invertible():
           logging.debug("no B")
           continue  # try agian for this index
-    
+
         if not A.is_invertible():
           logging.debug("no A_inv")
           continue  # try agian for this index
-        
+
         B = B_inv[i].inverse()
         A_inv[i] = A.inverse()
-    
+
         logging.debug(f"A[{i}]:\n%s", A)
         logging.debug(f"A_inv[{i}]:\n%s", A_inv[i])
         logging.debug(f"B[{i}]:\n%s", B)
         logging.debug(f"B_inv[{i}]:\n%s", B_inv[i])
-    
+
         G[i] = self.pi(A, B, G[0])
-    
+
         G[i] = G[i].echelon_form()
-    
+
         # check if we got systematic form
         if sum([G[i][j,j] for j in range(k)]) == k:
           logging.debug(f"G[{i}]:\n%s", G[i])
@@ -654,19 +654,19 @@ class MEDSbase:
 
     logging.debug(f"pk:\n0x%s", binascii.hexlify(pk).decode())
 
-  
+
     bs = bitstream.BitStream()
 
     for A_inv_i in A_inv[1:]:
       for v in [j for row in A_inv_i for j in row]:
         bs.write(int(v), GF_BITS)
-  
+
       bs.finalize()
 
     for B_inv_i in B_inv[1:]:
       for v in [j for row in B_inv_i for j in row]:
         bs.write(int(v), GF_BITS)
-  
+
       bs.finalize()
 
     sk = root_seed + pub_seed + bs.data
@@ -674,8 +674,8 @@ class MEDSbase:
     logging.debug(f"sk:\n0x%s", binascii.hexlify(sk).decode())
 
     return sk, pk
-  
-  
+
+
   def crypto_sign(self, sk, msg):
     q = self.params.q
     m = self.params.m
@@ -698,7 +698,7 @@ class MEDSbase:
 
     pub_seed = sk[:param.pub_seed_bytes]
     sk = sk[param.pub_seed_bytes:]
-  
+
     A_inv = [None]*s
     B_inv = [None]*s
 
@@ -710,32 +710,32 @@ class MEDSbase:
 
       A_inv[i] = matrix(GFq, m, m, data)
       logging.debug(f"A_inv[i]:\n%s", A_inv[i])
-  
+
     for i in range(1, s):
       data = [GFq(bs.read(GF_BITS)) for _ in range(n*n)]
       bs.finalize()
 
       B_inv[i] = matrix(GFq, n, n, data)
       logging.debug(f"B_inv[i]:\n%s", B_inv[i])
-  
+
     G_0 = MEDSbase.rnd_sys_matrix(pub_seed, GFq, k, m, n)
-  
+
     logging.debug(f"G_0:\n%s", G_0)
     logging.debug(f"delta:\n%s", [int(i) for i in initial_seed])
-  
+
     st_root, self.st_salt = self.XOF(initial_seed, [param.st_seed_bytes, param.st_salt_bytes])
     seeds = SeedTree(t, st_root, self.hash_pair)
 
     for i in range(t):
       logging.debug(f"sigma[{i}]:\n0x%s", binascii.hexlify(seeds[i]).decode())
-  
+
     A_tilde = [None]*t
     B_tilde = [None]*t
     G_tilde = [None]*t
-  
+
     for i in range(t):
       seed = seeds[i]
-  
+
       while True:
         pub_seed_A_tilde, pub_seed_B_tilde, seed = self.XOF(seed, [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
 
@@ -743,20 +743,20 @@ class MEDSbase:
 
         A_tilde[i] = MEDSbase.rnd_inv_matrix(pub_seed_A_tilde, self.GFq, m)
         B_tilde[i] = MEDSbase.rnd_inv_matrix(pub_seed_B_tilde, self.GFq, n)
-  
+
         logging.debug(f"A_tilde[{i}]:\n%s", A_tilde[i])
         logging.debug(f"B_tilde[{i}]:\n%s", B_tilde[i])
-  
+
         G_tilde[i] = self.pi(A_tilde[i], B_tilde[i], G_0)
-  
+
         logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
-  
+
         G_tilde[i] = G_tilde[i].echelon_form()  # 'public' computation - no need for constant time
-  
+
         # check if we got systematic form
         if sum([G_tilde[i][j,j] for j in range(k)]) == k:
           logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
-  
+
           break
 
     if type(msg) == str:
@@ -769,25 +769,25 @@ class MEDSbase:
       MEDSbase.matrix_to_bits(G_tilde_i[:,k:], bs)
 
       comp += bs.data
-  
+
     digest = self.hash(comp + msg)
-  
+
     logging.debug(f"digest:\n%s", [int(i) for i in digest])
 
     h = self.parse_hash(digest) #, t, s, w)
-  
+
     logging.debug(f"h:\n{h}")
-  
+
     bs = BitStream()
 
     for i, h_i in enumerate(h):
       if h_i > 0:
         mu = A_tilde[i] * A_inv[h_i]
         nu = B_inv[h_i] * B_tilde[i]
-  
+
         logging.debug(f"mu:\n%s", mu)
         logging.debug(f"nu:\n%s", nu)
-  
+
         MEDSbase.matrix_to_bits(mu, bs)
         bs.finalize()
 
@@ -804,11 +804,11 @@ class MEDSbase:
     ret += self.st_salt
 
     ret += msg
-  
+
     logging.debug(f"sm:\n0x%s", binascii.hexlify(ret).decode())
-  
+
     return ret
-  
+
   def crypto_sign_open(self, pk, sig):
     q = self.params.q
     m = self.params.m
@@ -828,9 +828,9 @@ class MEDSbase:
     logging.debug(f"sm:\n0x%s", binascii.hexlify(sig).decode())
 
     I_k = matrix.identity(ring=GFq, n=k)
-  
+
     G = []
-  
+
     pub_seed = pk[:param.pub_seed_bytes]
 
     bs = bitstream.BitStream(pk[param.pub_seed_bytes:])
@@ -840,7 +840,7 @@ class MEDSbase:
 #      pk.append(GFq(bs.read(GF_BITS)))
 
     G.append(MEDSbase.rnd_sys_matrix(pub_seed, GFq, k, m, n))
-  
+
     #while len(pk) > 0:
     for Gi in range(1, s):
       data = [GFq(bs.read(GF_BITS)) for _ in range(n + (k-2)*(m*n-k))]
@@ -858,7 +858,7 @@ class MEDSbase:
 
 #      for i in range(m*n - k):
 #        Gright[0,i] = data[0][i]
-          
+
       data = [0, 1]
       data[1] = [GFq(1) if i==j else GFq(0) for j in range(2,m) for i in range(n)] #+ data[1][-n:]
 
@@ -868,7 +868,7 @@ class MEDSbase:
 
       G.append(I_k.augment(Gright))
 
- 
+
     for i,g in enumerate(G):
       logging.debug(f"G[{i}]:\n%s", g)
 
@@ -877,7 +877,7 @@ class MEDSbase:
     path = sig[:param.seed_tree_cost]; sig = sig[param.seed_tree_cost:]
     digest = sig[:param.digest_bytes]; sig = sig[param.digest_bytes:]
     self.st_salt = sig[:param.st_salt_bytes]; msg = sig[param.st_salt_bytes:]
-    
+
     logging.debug(f"munu:\n0x%s", binascii.hexlify(munu).decode())
     logging.debug(f"path:\n0x%s", binascii.hexlify(path).decode())
     logging.debug(f"digest:\n0x%s", binascii.hexlify(digest).decode())
@@ -886,26 +886,26 @@ class MEDSbase:
     #digest = sig[param.sig_size-param.digest_bytes-param.st_salt_bytes:param.sig_size-param.st_salt_bytes]
     #self.st_salt = sig[param.sig_size-param.st_salt_bytes:param.sig_size]
     #path = sig[:self.params.sig_size-param.digest_bytes-param.st_salt_bytes]
-  
+
 #    logging.debug(f"digest:\n{[int(i) for i in digest]}")
 
     h = self.parse_hash(digest) #, t, s, w)
-  
+
     seeds = self.seeds_from_path(h, path)
-  
+
     G_hat = [None] * t
 
     bs = BitStream(munu)
-  
+
     for i, h_i in enumerate(h):
       if h_i == 0:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in seeds[i]])
-  
+
         seed = seeds[i]
-    
+
         while True:
           pub_seed_A_tilde, pub_seed_B_tilde, seed = self.XOF(seed, [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
-  
+
           logging.debug(f"sigma_A_tilde[{i}]:\n%s", [int(i) for i in pub_seed_A_tilde])
           A_tilde = MEDSbase.rnd_inv_matrix(pub_seed_A_tilde, self.GFq, m)
 
@@ -914,37 +914,37 @@ class MEDSbase:
 
           logging.debug(f"A_tilde[{i}]:\n%s", A_tilde)
           logging.debug(f"B_tilde[{i}]:\n%s", B_tilde)
-    
+
           G_hat[i] = self.pi(A_tilde, B_tilde, G[0])
-  
+
           logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
-  
+
           G_hat[i] = G_hat[i].echelon_form()
-  
+
           logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
-  
+
           # check if we got systematic form
           if sum([G_hat[i][j,j] for j in range(k)]) == k:
             break
-    
+
       else:
         mu = matrix(GFq, m, m, [GFq(bs.read(GF_BITS)) for _ in range(m*m)])
         bs.finalize()
 
         nu = matrix(GFq, n, n, [GFq(bs.read(GF_BITS)) for _ in range(n*n)])
         bs.finalize()
-  
+
         logging.debug(f"mu[{i}]:\n%s", mu)
         logging.debug(f"nu[{i}]:\n%s", nu)
-   
+
         G_hat[i] = self.pi(mu, nu, G[h_i])
-  
+
         logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
-  
+
         G_hat[i] = G_hat[i].echelon_form()
-  
+
         logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
-  
+
     comp = bytes()
 
     for G_hat_i in G_hat:
@@ -952,14 +952,14 @@ class MEDSbase:
       MEDSbase.matrix_to_bits(G_hat_i[:,k:], bs)
 
       comp += bs.data
-  
+
     check = self.hash(comp + msg)
-  
+
 #    check = self.hash(b"".join([MEDSbase.matrix_to_bytes(M[:,k:]) for M in G_hat]) + msg)
-  
+
     if not digest == check:
       raise BadSignatureError("Signature verification failed!")
-  
+
     return msg
 
 class MEDS(MEDSbase):
@@ -1017,7 +1017,7 @@ if __name__ == "__main__":
   if path.exists("/proc/self/fd/3"):
     handler = logging.FileHandler(filename = "/proc/self/fd/3", mode='w')
     handler.setFormatter(formatter)
-  
+
     logger = logging.getLogger()
     logger.setLevel("DEBUG")
     logger.addHandler(handler)
@@ -1025,7 +1025,7 @@ if __name__ == "__main__":
   if args.verbous:
     handler = logging.FileHandler(filename = "KAT/" + args.parset + ".log", mode='w')
     handler.setFormatter(formatter)
-  
+
     logger = logging.getLogger()
     logger.setLevel("DEBUG")
     logger.addHandler(handler)
@@ -1043,13 +1043,13 @@ if __name__ == "__main__":
     start_time = time.time()
     meds.crypto_sign_keypair()
     pk_time = time.time() - start_time
-    
+
     print("pk:  {0} bytes".format(len(meds.pk)))
 
 #assert(len(meds.pk) == meds.params.pk_size)
-    
+
     msg = b"Test"
-    
+
     start_time = time.time()
     sm = meds.crypto_sign(msg)
     sig_time = time.time() - start_time
@@ -1060,7 +1060,7 @@ if __name__ == "__main__":
 
     ## break signature for testing:
     # sig = bytearray(sig); sig[54] = 8
-  
+
     start_time = time.time()
     tmp = meds.crypto_sign_open(sm)
     verify_time = time.time() - start_time
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
     print()
     print("success")
     print()
- 
+
     print("Time:")
     print("keygen: {0:1.4f}".format(pk_time))
     print("sign:   {0:1.4f}".format(sig_time))
@@ -1086,4 +1086,4 @@ if __name__ == "__main__":
     print()
     print("Exception:", e)
     print()
- 
+
