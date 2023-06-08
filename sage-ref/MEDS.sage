@@ -317,7 +317,7 @@ class MEDSbase:
 
     return tuple(data[sum(length[:i]):sum(length[:i+1])] for i in range(len(length)))
 
-  def solve(self, G0prime, Tj, Amm):
+  def solve_opt(self, G0prime, Amm):
     q = self.params.q
     m = self.params.m
     n = self.params.n
@@ -429,153 +429,123 @@ class MEDSbase:
 
     return A, B_inv
 
+  def solve_symb(self, G0prime, Amm):
+    q = self.params.q
+    m = self.params.m
+    n = self.params.n
+    k = self.params.k
+    s = self.params.s
+    t = self.params.t
+    w = self.params.w
 
-#  def solve_med(self, G0prime, Tj, Amm):
-#    q = self.params.q
-#    m = self.params.m
-#    n = self.params.n
-#    k = self.params.k
-#    s = self.params.s
-#    t = self.params.t
-#    w = self.params.w
-#
-#    GFq = self.GFq
-#
-#    P0prime = [matrix(GFq, m, n, row) for row in G0prime.rows()]
-#
-#    AP0 = -P0prime[0].transpose()
-#    AP1 = -P0prime[1].transpose()
-#    
-#    logging.debug(f"AP0:\n%s", AP0)
-#    logging.debug(f"AP1:\n%s", AP1)
-#
-#    rsys_top = matrix(GFq, n*m, m*n)
-#    rsys_bot = matrix(GFq, n*m - 1, m*n)
-#
-# 
-#    for block in range(m):
-#      for row in range(m):
-#        for col in range(n if block < m-1 else n-1):
-#          rsys_top[block*n+row, block*m+col] = AP0[row, col]
-#    
-#    for row in range(m):
-#      rsys_top[(m-1)*n+row, (m-1)*m+n-1] = -Amm * AP0[row, n-1]
-#    
-#    
-#    for block in range(m):
-#      for row in range(m if block < m-1 else m-1):
-#        for col in range(n if block < m-1 else n-1):
-#          rsys_bot[block*n+row, block*m+col] = AP1[row, col]
-#    
-#    for row in range(m-1):
-#      rsys_bot[(m-1)*n+row, (m-1)*m+n-1] = -Amm * AP1[row, n-1]
-#    
-#    
-#    for block in range(m-1):
-#      for row in range(m):
-#        for col in range(n if block < m-2 else n-1):
-#          rsys_bot[block*n+row, (block+1)*m+col] = -AP0[row, col]
-#    
-#    for row in range(m):
-#          rsys_bot[(m-2)*n+row, (m-1)*m+n-1] = Amm * AP0[row, n-1]
-#    
-#    logging.debug(f"sys top:\n%s", rsys_top)
-#    logging.debug(f"sys bottom:\n%s", rsys_bot)
-#    
-#    rsys_bot = rsys_bot.rref()
-#    
-#    logging.debug(f"sys bottom rref:\n%s", rsys_bot.rref())
-#
-#    for col in reversed(range(m*n-1)):
-#      for row in range(n*m):
-#        rsys_top[row, m*n-1] -= rsys_top[row, col] * rsys_bot[col, m*n - 1]
-#    
-#    logging.debug(f"sys top elim:\n%s", rsys_top)
-#
-#    sol = list(rsys_top.column(m*n-1)) + list(rsys_bot.column(m*n-1))
-#    
-#    logging.debug(f"sol:\n%s", sol)
-#
-#    A = matrix(GFq, n, sol[m*m:] + [Amm])
-#    B_inv = matrix(GFq, m, sol[:m*m])
-#
-#    return A, B_inv
-#
-#  def solve_slow(self, G0, Tj, Amm):
-#    q = self.params.q
-#    m = self.params.m
-#    n = self.params.n
-#    k = self.params.k
-#    s = self.params.s
-#    t = self.params.t
-#    w = self.params.w
-#
-#    GFq = self.GFq
-#
-#    G0prime = Tj * G0
-#    
-#    logging.debug(f"G0prime:\n%s", G0prime)
-#
-#    P0prime = [matrix(GFq, m, n, row) for row in G0prime.rows()]
-#
-#    Pj = [None] * 2
-#
-#    Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
-#    logging.debug(f"Pj[0]:\n%s", Pj[0].str(rep_mapping=lambda x : f'{int(x):4}'))
-#
-#    Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n]) #[sec_GFqs[0]])
-#    logging.debug(f"Pj[1]:\n%s", Pj[1].str(rep_mapping=lambda x : f'{int(x):4}'))
-#
-#    rsys = []
-#
-#    for l in range(n):
-#      for j in range(m):
-#        tmp = [GFq(0)] * (m^2 + n^2)
-#        
-#        for ii in range(m):
-#          tmp[l*m + ii] = P0prime[0][ii,j]
-#        
-#        for ii in range(n if j < m-1 else n-1):
-#          tmp[m*m + ii*n + j] = - Pj[0][l,ii]
-#        
-#        if j == m-1:
-#          tmp[m*m + n*n - 1] = Amm * Pj[0][l,n-1]
-#      
-#        rsys.append(tmp)
-#    
-#    for l in range(n):
-#      for j in range(m if l < n-1 else m-1):
-#        tmp = [GFq(0)] * (m^2 + n^2)
-#        
-#        for ii in range(m):
-#          tmp[l*m + ii] = P0prime[1][ii,j]
-#        
-#        for ii in range(n if j < m-1 else n-1):
-#          tmp[m*m + ii*n + j] = - Pj[1][l,ii]
-#        
-#        if j == m-1:
-#          tmp[m*m + n*n - 1] = Amm * Pj[1][l,n-1]
-#      
-#        rsys.append(tmp)
-#    
-#    rsys = matrix(GFq, ncols=m^2 + n^2, entries=rsys)
-#
-#    logging.debug(f"rsys:\n%s", rsys)
-#
-#    rsys_rref = rsys.rref()
-#
-#    if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
-#      logging.debug("no sol")
-#      return None, None
-#
-#    sol = rsys_rref.columns()[-1].list()
-#    
-#    logging.debug(f"sol:\n%s", sol)
-#    
-#    A = matrix(GFq, m, sol[:m*m])
-#    B_inv = matrix(GFq, n, sol[m*m:] + [Amm])
-#
-#    return A, B_inv
+    GFq = self.GFq
+
+    P0prime = [matrix(GFq, m, n, row) for row in G0prime.rows()]
+
+    Pj = [None] * 2
+
+    Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
+    Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n])
+
+    R = PolynomialRing(GFq, m*m + n*n,
+       names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
+             + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
+    
+    A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
+    B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
+    
+    A[m-1,m-1] = Amm
+    
+    eqs1 = Pj[0] * B_inv - A*P0prime[0]
+    eqs2 = Pj[1] * B_inv - A*P0prime[1]
+    
+    eqs = eqs1.coefficients() + eqs2.coefficients()[:-1]
+    
+    rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()[:-1]] + [-eq.constant_coefficient()] for eq in eqs])
+
+    rsys_rref = rsys.rref()
+
+    if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
+      logging.debug("no sol")
+      return None, None
+
+    sol = rsys_rref.columns()[-1].list()
+
+    A = matrix(GFq, m, sol[n*n:] + [Amm])
+    B_inv = matrix(GFq, m, sol[:n*n])
+
+    logging.debug(f"A:\n%s", A)
+    logging.debug(f"B_inv:\n%s", B_inv)
+
+    return A, B_inv
+ 
+  def solve_comp(self, G0prime, Amm):
+    q = self.params.q
+    m = self.params.m
+    n = self.params.n
+    k = self.params.k
+    s = self.params.s
+    t = self.params.t
+    w = self.params.w
+
+    GFq = self.GFq
+
+    P0prime = [matrix(GFq, m, n, row) for row in G0prime.rows()]
+
+    Pj = [None] * 2
+
+    Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
+    Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n])
+
+    rsys = []
+
+    for l in range(n):
+      for j in range(m):
+        tmp = [GFq(0)] * (m^2 + n^2)
+        
+        for i in range(m):
+          tmp[m*m + l*m + i] = - P0prime[0][i,j]
+        
+        for i in range(n):
+          tmp[i*n + j] = Pj[0][l,i]
+        
+        if l == n-1:
+          tmp[m*m + n*n - 1] = Amm * P0prime[0][n-1,j]
+      
+        rsys.append(tmp)
+    
+    for l in range(n):
+      for j in range(m if l < n-1 else m-1):
+        tmp = [GFq(0)] * (m^2 + n^2)
+        
+        for i in range(m):
+          tmp[m*m + l*m + i] = - P0prime[1][i,j]
+        
+        for i in range(n):
+          tmp[i*n + j] = Pj[1][l,i]
+        
+        if l == n-1:
+          tmp[m*m + n*n - 1] = Amm * P0prime[1][n-1,j]
+      
+        rsys.append(tmp)
+ 
+    rsys = matrix(GFq, ncols=m^2 + n^2, entries=rsys)
+
+    rsys_rref = rsys.rref()
+
+    if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
+      logging.debug("no sol")
+      return None, None
+
+    sol = rsys_rref.columns()[-1].list()
+    
+    A = matrix(GFq, m, sol[n*n:] + [Amm])
+    B_inv = matrix(GFq, m, sol[:n*n])
+
+    logging.debug(f"A:\n%s", A)
+    logging.debug(f"B_inv:\n%s", B_inv)
+
+    return A, B_inv
  
   def crypto_sign_keypair(self):
     global write_rest
@@ -628,7 +598,7 @@ class MEDSbase:
         logging.debug(f"G0prime:\n%s", G0prime)
 
 
-        A, B_inv[i] = self.solve(G0prime, Ti, Amm)
+        A, B_inv[i] = self.solve_symb(G0prime, Amm)
 
         if A == None and B_inv[i] == None:
           logging.debug("no sol")
