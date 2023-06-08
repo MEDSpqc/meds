@@ -28,26 +28,30 @@ class Task:
 def check(t):
   ret = str(t.count)
 
-  randombytes.randombytes_init(t.seed, None, 256)
+  try:
+    randombytes.randombytes_init(t.seed, None, 256)
+  
+    meds = MEDS.MEDS(args.parset, randombytes)
+  
+    meds.crypto_sign_keypair()
 
-  meds = MEDS.MEDS(args.parset, randombytes)
+    assert t.pk == meds.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(meds.pk).decode()}"
+  
+    assert t.sk == meds.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(meds.sk).decode()}"
+  
+    tmp = meds.crypto_sign(t.msg)
+  
+    assert tmp == t.sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
+  
+    tmp = meds.crypto_sign_open(t.sm)
+  
+    assert tmp == t.msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
+  
+    ret += " ok"
 
-  meds.crypto_sign_keypair()
-
-  assert t.pk == meds.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(meds.pk).decode()}"
-
-  assert t.sk == meds.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(meds.sk).decode()}"
-
-  tmp = meds.crypto_sign(t.msg)
-
-  assert tmp == t.sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
-
-  tmp = meds.crypto_sign_open(t.sm)
-
-  assert tmp == t.msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
-
-  ret += " ok\n"
-
+  except NameError:
+    ret += " ERROR!"
+  
   return ret
 
 if __name__ == "__main__":

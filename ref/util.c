@@ -242,6 +242,13 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
   LOG_MAT(M, MEDS_n, MEDS_m + MEDS_m + 2);
 
+//  if (pmod_mat_row_echelon_ct(M, MEDS_n, MEDS_m + MEDS_m + 2) < 0)
+//    return -1;
+//
+//  M[MEDS_n*(MEDS_m + MEDS_m + 2)-1] = 0;
+//
+//  pmod_mat_back_substitution_ct(M, MEDS_n, MEDS_m + MEDS_m + 2);
+
   if (pmod_mat_syst_ct(M, MEDS_n-1, MEDS_m + MEDS_m + 2) < 0)
     return -1;
 
@@ -270,6 +277,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
     pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, MEDS_n-1, r, 0);
   }
 
+  // normalize last row
   {
     uint64_t val = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, MEDS_n-1, MEDS_n-1);
 
@@ -295,6 +303,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
   LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M red");
 
+  // back substitute
   for (int r = 0; r < MEDS_n-1; r++)
   {
     uint64_t factor = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, r, MEDS_n-1);
