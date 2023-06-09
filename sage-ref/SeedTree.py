@@ -5,11 +5,13 @@ import random, math
 
 class Node:
 
-  def __init__(self, height, value = object, f = lambda a : (a, a), h=0, i=0):
+  def __init__(self, height, value = b"", f = lambda a : (a, a), salt = b"", h=0, i=0):
     self.height = height
 
     self.left  = None
     self.right = None
+
+    self.salt = salt
 
     self.update(value, f, h, i)
 
@@ -17,16 +19,16 @@ class Node:
     self.value = value
 
     if self.height > 0:
-      lv, rv = f(self.value, (1<<h) + i - 1)
+      lv, rv = f(self.salt + self.value + ((1<<h) + i - 1).to_bytes(4, "little"))
 
-      self.left  = Node(self.height-1, lv, f, h+1, i<<1)
-      self.right = Node(self.height-1, rv, f, h+1, (i<<1) + 1)
+      self.left  = Node(self.height-1, lv, f, self.salt, h+1, i<<1)
+      self.right = Node(self.height-1, rv, f, self.salt, h+1, (i<<1) + 1)
 
   def __str__(self):
     if self.value:
       if type(self.value) == bytes:
         return str(self.value.hex())
-      elif self.value == object:
+      elif self.value == b"":
         return "--"
     else:
       return "--"
@@ -101,10 +103,10 @@ class Node:
 
 
 class SeedTree:
-  def __init__(self, leafs, value = object, f = lambda a,b : (a, a)):
+  def __init__(self, leafs, value = b"", f = lambda a : (a, a), salt = b""):
     self.height = math.ceil(math.log(leafs,2))
     self.leafs = leafs
-    self.root = Node(self.height, value, f)
+    self.root = Node(self.height, value, f, salt)
 
   def __getitem__(self, key):
     return self.root[key]
