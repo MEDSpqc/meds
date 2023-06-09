@@ -332,7 +332,7 @@ class MEDSbase:
 
     N = -P0prime[0].transpose()
 
-    logging.debug(f"N:\n%s", N)
+    #logging.debug(f"N:\n%s", N)
 
 
     M = matrix(GFq, n, m + m + 2)
@@ -351,7 +351,7 @@ class MEDSbase:
     for j in range(n):
       M[j, m+n+1] = P0prime[1][m-1, j]*Amm
 
-    logging.debug(f"M:\n%s", M)
+    #logging.debug(f"M:\n%s", M)
 
     Ms = M.matrix_from_rows_and_columns(range(M.nrows()-1), range(M.ncols()))
 
@@ -361,7 +361,7 @@ class MEDSbase:
     if not all([Ms[i,i] == 1 for i in range(n-1)]):
       return None, None
 
-    logging.debug(f"M part:\n%s", M)
+    #logging.debug(f"M part:\n%s", M)
 
     for i in range(n-1):
       M.add_multiple_of_row(n-1, i, -M[n-1,i])
@@ -373,12 +373,12 @@ class MEDSbase:
 
     M[-1, -1] = GFq(0)
 
-    logging.debug(f"M red:\n%s", M) 
+    #logging.debug(f"M red:\n%s", M) 
 
     for i in range(n-1):
       M.add_multiple_of_row(i, n-1, -M[i,n-1])
 
-    logging.debug(f"M done:\n%s", M) 
+    #logging.debug(f"M done:\n%s", M) 
 
 
     sol = [0] * (n*n + m*m)
@@ -394,7 +394,7 @@ class MEDSbase:
     for i in range(n):
       sol[n*n - n + i] = P0prime[0][m-1,i]*Amm
 
-    logging.debug(f"initial sol:\n%s", sol)
+    #logging.debug(f"initial sol:\n%s", sol)
 
     # incomplete blocks:
 
@@ -403,7 +403,7 @@ class MEDSbase:
         sol[n*n + m*m - 2*n + i] += - M[i, n+n-2-j] * sol[n*n + m*m - 2 - j]
         sol[n*n - n + i] += - N[i, m-2-j] * sol[n*n + m*m - 2 - j]
 
-    logging.debug(f"incomplete blocks:\n%s", sol)
+    #logging.debug(f"incomplete blocks:\n%s", sol)
 
 
     # complete blocks:
@@ -418,14 +418,14 @@ class MEDSbase:
         for j in range(n):
           sol[n*n - block*n + i] += - N[i, m-1-j] * sol[n*n + m*m - 1 - (block-1)*n - j]
 
-    logging.debug(f"complete blocks:\n%s", sol)
+    #logging.debug(f"complete blocks:\n%s", sol)
 
 
     A = matrix(GFq, m,m, sol[n*n:])
     B_inv = matrix(GFq, n,n, sol[:n*n])
 
-    logging.debug(f"A:\n%s", A)
-    logging.debug(f"B_inv:\n%s", B_inv)
+    #logging.debug(f"A:\n%s", A)
+    #logging.debug(f"B_inv:\n%s", B_inv)
 
     return A, B_inv
 
@@ -466,7 +466,7 @@ class MEDSbase:
     rsys_rref = rsys.rref()
 
     if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
-      logging.debug("no sol")
+      #logging.debug("no sol")
       return None, None
 
     sol = rsys_rref.columns()[-1].list()
@@ -474,8 +474,8 @@ class MEDSbase:
     A = matrix(GFq, m, sol[n*n:] + [Amm])
     B_inv = matrix(GFq, m, sol[:n*n])
 
-    logging.debug(f"A:\n%s", A)
-    logging.debug(f"B_inv:\n%s", B_inv)
+    #logging.debug(f"A:\n%s", A)
+    #logging.debug(f"B_inv:\n%s", B_inv)
 
     return A, B_inv
 
@@ -534,7 +534,7 @@ class MEDSbase:
     rsys_rref = rsys.rref()
 
     if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
-      logging.debug("no sol")
+      #logging.debug("no sol")
       return None, None
 
     sol = rsys_rref.columns()[-1].list()
@@ -542,8 +542,8 @@ class MEDSbase:
     A = matrix(GFq, m, sol[n*n:] + [Amm])
     B_inv = matrix(GFq, m, sol[:n*n])
 
-    logging.debug(f"A:\n%s", A)
-    logging.debug(f"B_inv:\n%s", B_inv)
+    #logging.debug(f"A:\n%s", A)
+    #logging.debug(f"B_inv:\n%s", B_inv)
 
     return A, B_inv
 

@@ -220,7 +220,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
     for (int j = 0; j < MEDS_n; j++)
       N[j*MEDS_m + i] = (MEDS_p - P0prime0[i*MEDS_n + j]) % MEDS_p;
 
-  LOG_MAT(N, MEDS_n, MEDS_m);
+  //LOG_MAT(N, MEDS_n, MEDS_m);
 
 
   pmod_mat_t M[MEDS_n*(MEDS_m + MEDS_m + 2)] = {0};
@@ -240,19 +240,12 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
     M[j*(MEDS_m + MEDS_m + 2) + MEDS_m + MEDS_n + 1] = ((uint32_t)P0prime1[(MEDS_m-1)*MEDS_n + j] * (uint32_t)Amm) % MEDS_p;
 
 
-  LOG_MAT(M, MEDS_n, MEDS_m + MEDS_m + 2);
-
-//  if (pmod_mat_row_echelon_ct(M, MEDS_n, MEDS_m + MEDS_m + 2) < 0)
-//    return -1;
-//
-//  M[MEDS_n*(MEDS_m + MEDS_m + 2)-1] = 0;
-//
-//  pmod_mat_back_substitution_ct(M, MEDS_n, MEDS_m + MEDS_m + 2);
+  //LOG_MAT(M, MEDS_n, MEDS_m + MEDS_m + 2);
 
   if (pmod_mat_syst_ct(M, MEDS_n-1, MEDS_m + MEDS_m + 2) < 0)
     return -1;
 
-  LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M part");
+  //LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M part");
 
   // eliminate last row
   for (int r = 0; r < MEDS_n-1; r++)
@@ -301,7 +294,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
   M[MEDS_n*(MEDS_m + MEDS_m + 2)-1] = 0;
 
-  LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M red");
+  //LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M red");
 
   // back substitute
   for (int r = 0; r < MEDS_n-1; r++)
@@ -327,7 +320,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   }
 
 
-  LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M done");
+  //LOG_MAT_FMT(M, MEDS_n, MEDS_m + MEDS_m + 2, "M done");
 
 
   GFq_t sol[MEDS_n*MEDS_n + MEDS_m*MEDS_m] = {0};
@@ -343,7 +336,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   for (int i = 0; i < MEDS_n; i++)
     sol[MEDS_n*MEDS_n - MEDS_n + i] = ((uint32_t)P0prime0[(MEDS_m-1)*MEDS_n + i] * (uint32_t)Amm) % MEDS_p;
 
-  LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "initial sol");
+  //LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "initial sol");
 
 
   // incomplete blocks:
@@ -364,7 +357,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
       sol[MEDS_n*MEDS_n - MEDS_n + i] = tmp % MEDS_p;
     }
 
-  LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "incomplete blocks");
+  //LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "incomplete blocks");
 
 
   // complete blocks:
@@ -387,7 +380,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
         sol[MEDS_n*MEDS_n - block*MEDS_n + i] = tmp % MEDS_p;
       }
 
-  LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "complete blocks");
+  //LOG_VEC_FMT(sol, MEDS_n*MEDS_n + MEDS_m*MEDS_m, "complete blocks");
 
 
   for (int i = 0; i < MEDS_m * MEDS_m; i++)
@@ -396,8 +389,8 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   for (int i = 0; i < MEDS_n * MEDS_n; i++)
     B_inv[i] = sol[i];
 
-  LOG_MAT(A, MEDS_m, MEDS_m);
-  LOG_MAT(B_inv, MEDS_n, MEDS_n);
+  //LOG_MAT(A, MEDS_m, MEDS_m);
+  //LOG_MAT(B_inv, MEDS_n, MEDS_n);
 
   return 0;
 }
