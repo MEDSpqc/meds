@@ -5,13 +5,11 @@ import random, math
 
 class Node:
 
-  def __init__(self, height, value = b"", f = lambda a : (a, a), salt = b"", h=0, i=0):
+  def __init__(self, height, value = object, f = lambda a, b : (a, a), h=0, i=0):
     self.height = height
 
     self.left  = None
     self.right = None
-
-    self.salt = salt
 
     self.update(value, f, h, i)
 
@@ -19,17 +17,15 @@ class Node:
     self.value = value
 
     if self.height > 0:
-      lv, rv = f(self.salt + self.value + ((1<<h) + i - 1).to_bytes(4, "little"))
+      lv, rv = f(self.value, (1<<h) + i - 1)
 
-      self.left  = Node(self.height-1, lv, f, self.salt, h+1, i<<1)
-      self.right = Node(self.height-1, rv, f, self.salt, h+1, (i<<1) + 1)
+      self.left  = Node(self.height-1, lv, f, h+1, i<<1)
+      self.right = Node(self.height-1, rv, f, h+1, (i<<1) + 1)
 
   def __str__(self):
     if self.value:
       if type(self.value) == bytes:
         return str(self.value.hex())
-      elif self.value == b"":
-        return "--"
     else:
       return "--"
 
@@ -84,16 +80,12 @@ class Node:
       else:
         return []
 
-  def patch(self, path, f = lambda a : (a, a), h=0, i=0):
+  def patch(self, path, f = lambda a, b : (a, a), h=0, i=0):
     try:
       if not self.value:
         if self.height > 0:
           path = self.left.patch(path, f, h+1, i<<1)
           path = self.right.patch(path, f, h+1, (i<<1) + 1)
-        else:
-          #return path
-          self.update(path[0], f, h, i)
-          path = path[1:]
       else:
         self.update(path[0], f, h, i)
         path = path[1:]
@@ -103,10 +95,10 @@ class Node:
 
 
 class SeedTree:
-  def __init__(self, leafs, value = b"", f = lambda a : (a, a), salt = b""):
+  def __init__(self, leafs, value = object, f = lambda a, b : (a, a)):
     self.height = math.ceil(math.log(leafs,2))
     self.leafs = leafs
-    self.root = Node(self.height, value, f, salt)
+    self.root = Node(self.height, value, f)
 
   def __getitem__(self, key):
     return self.root[key]
@@ -139,7 +131,10 @@ class SeedTree:
     for i in range(self.height+1):
       for j in range(1<<i):
         ret += "   "*((1<<(self.height-i))-1)
-        ret += "  " + str(stack[0])[:2] + "  "
+        try:
+          ret += "  " + str(stack[0])[:2] + "  "
+        except TypeError:
+          ret += "  XX  "
         ret += "   "*((1<<(self.height-i))-1)
 
         stack = stack[1:]
@@ -152,9 +147,7 @@ class SeedTree:
 if __name__ == "__main__":
   leafs = 14
 
-  def hash_pair(value):
-    #digest = sha256(value).digest()
-
+  def hash_pair(value, _):
     shake = SHAKE256.new()
     shake.update(value)
     digest = shake.read(256>>3)
@@ -162,8 +155,6 @@ if __name__ == "__main__":
     return digest[:16], digest[16:]
 
   seed = random.randbytes(16)
-
-  #seed = b'deadbeefdeadbeef'
 
   shake = SHAKE256.new()
   shake.update(seed)
@@ -179,13 +170,9 @@ if __name__ == "__main__":
     print(tree[i].hex())
 
 
-  # tree.delete(5)
-  # tree.delete(8)
-  # tree.delete(12)
-
-  tree[2] = bytes([0xf0]*42)
-  tree[8] = bytes([0xf1]*42)
-  tree[12] = bytes([0xf2]*42)
+  tree.delete(2)
+  tree.delete(8)
+  tree.delete(12)
 
   print()
 
@@ -219,5 +206,4 @@ if __name__ == "__main__":
 
   for i in range(leafs):
     print(tree2[i].hex() if type(tree2[i]) == bytes else "--")
-
 

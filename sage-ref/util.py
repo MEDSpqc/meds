@@ -1,72 +1,126 @@
-from sage.all_cmdline import *   # import sage libraryS
+from sage.all_cmdline import *   # import sage librarys
 
 from Crypto.Hash import SHAKE256
 from Crypto.Hash import SHA256
 
-import logging
+#import logging
 
 from SeedTree import SeedTree
+from bitstream import BitStream
 
-def compress(m, bs):
-  GFq = m[0,0].base_ring()
-  GF_BITS = ceil(log(GFq.base().order(),2))
-  if GFq.is_prime_field():
-    for v in [j for v in m.rows() for j in v]:
-      bs.write(int(v), GF_BITS)
-  else:
-    raise "Not implemented..."
 
-cache = {}
+GFq_cache = {}
 
-def rnd_GFq(seed, GFq, min=0):
-  global cache
+def get_cached(GFq):
+  global GFq_cache
 
-  if GFq in cache:
-    numbytes, mask, q = cache[GFq]
-  else:
+  if GFq not in GFq_cache:
     numbytes = ceil(log(GFq.base().order(),2)/8)
+    GF_BITS = ceil(log(GFq.base().order(),2))
     mask = (1 << ceil(log(GFq.base().order(),2))) - 1
     q = GFq.base().order()
 
-    cache[GFq] = numbytes, mask, q 
+    GFq_cache[GFq] = numbytes, mask, q, GF_BITS
 
-  if type(seed) == SHAKE256.SHAKE256_XOF:
-    shake = seed
-  else:
-    shake = SHAKE256.new()
-    shake.update(seed)
+  return GFq_cache[GFq]
 
-  while True:
-    val = 0
 
-    for i in range(numbytes):
-      val += ord(shake.read(1)) << (i*8)
 
-    val = val & mask
+def Compress(M):
+  GFq = M[0,0].base_ring()
+  _, _, _, GF_BITS = get_cached(GFq)
 
-    if val >= min and val < q:
-      return GFq(val)
+  bs = BitStream()
 
-def rnd_matrix(seed, GFq, m, n=None):
-  if not n:
-    n = m
+  for v in [j for v in M.rows() for j in v]:
+    bs.write(int(v), GF_BITS)
+
+  return bs.data
+
+def Decompress(b, GFq, r, c):
+  _, _, _, GF_BITS = get_cached(GFq)
+
+  bs = BitStream(b)
+
+  data = [GFq(bs.read(GF_BITS)) for _ in range(r*c)]
+  
+  return matrix(GFq, r, c, data)
+
+
+def CompressG(M, k, m, n):
+  GFq = M[0,0].base_ring()
+  _, _, _, GF_BITS = get_cached(GFq)
+
+  bs = BitStream()
+
+  for i in range(n):
+    bs.write(int(M[1,m*n-n+i]), GF_BITS)
+
+  for i in range(2, k):
+    for j in range(k, m*n):
+      bs.write(int(M[i, j]), GF_BITS)
+
+  return bs.data
+
+def DecompressG(b, GFq, k, m, n):
+  _, _, _, GF_BITS = get_cached(GFq)
+
+  bs = BitStream(b)
+
+  I_k = matrix.identity(ring=GFq, n=k)
+
+  G = I_k.augment(matrix(GFq, k, m*n-k))
+
+  for i in range(1, m):
+    G[0, i*(n+1)] = 1
+
+  for i in range(1, m-1):
+    G[1, i*(n+1)+1] = 1
+
+  for i in range(n):
+    G[1,m*n-n+i] = GFq(bs.read(GF_BITS))
+
+  for i in range(2, k):
+    for j in range(k, m*n):
+      G[i, j] = GFq(bs.read(GF_BITS))
+
+  return G
+
+
+def ExpandFqs(seed, num, GFq):
+  numbytes, mask, q, _ = get_cached(GFq)
 
   shake = SHAKE256.new()
   shake.update(seed)
 
-  return matrix(GFq, m, n, [rnd_GFq(shake, GFq) for i in range(m*n)])
+  ret = []
 
-def rnd_inv_matrix(seed, GFq, n):
+  for _ in range(num):
+    while True:
+      val = 0
+  
+      for i in range(numbytes):
+        val += ord(shake.read(1)) << (i*8)
+  
+      val = val & mask
+  
+      if val < q:
+        ret.append(GFq(val))
+        break
+
+  return ret
+
+def ExpandInvMat(seed, GFq, n):
   while True:
-    M = rnd_matrix(seed, GFq, n, n)
+    M = matrix(GFq, n, n, ExpandFqs(seed, n*n, GFq))
 
     if M.is_invertible():
       return M
 
-def rnd_sys_matrix(seed, GFq, k, m, n):
+def ExpandSystMat(seed, GFq, k, m, n):
   I_k = matrix.identity(ring=GFq, n=k)
 
-  return I_k.augment(rnd_matrix(seed, GFq, k, m*n-k))
+  return I_k.augment(matrix(GFq, k, m*n-k, ExpandFqs(seed, k*(m*n-k), GFq)))
 
 
 def pi(A, B, G):
@@ -81,6 +135,15 @@ def pi(A, B, G):
   AGB = [A*v*B for v in G]
 
   return matrix(GFq, k, m*n, [AGB[i][j,g] for i in range(k) for j in range(m) for g in range(n)])
+
+def SF(M):
+  M = M.echelon_form()
+
+  # check if we got systematic form
+  if sum([M[j,j] for j in range(M.nrows())]) != M.nrows():
+    return None
+
+  return M
 
 
 def XOF(seed, length):
@@ -104,46 +167,52 @@ def H(params):
 
   return hash
 
-def G(params):
-  def hash_pair(value):
+def G(params, salt):
+  def hash_pair(value, addr):
     shake = SHAKE256.new()
-    shake.update(value)
+    shake.update(salt + value + addr.to_bytes(4, "little"))
 
     return shake.read(params.st_seed_bytes), shake.read(params.st_seed_bytes)
 
   return hash_pair
 
+def SeedTreeToPath(h, root, salt, param):
+  seeds = SeedTree(param.t, root, G(param, salt))
 
-def seeds_from_path(h, path, salt, param):
+  for i, h_i in enumerate(h):
+    if h_i > 0:
+      seeds.delete(i)
+
+  ret = b"".join(seeds.path())
+
+  return ret + bytes([0]) * (param.seed_tree_cost - len(ret))
+
+def PathToSeedTree(h, path, salt, param):
   # prepare tree structure
-  seeds = SeedTree(param.t, salt = salt)
+  seeds = SeedTree(param.t)
 
   for i, v in enumerate(h):
     if v > 0:
-      seeds[i] = object
+      seeds.delete(i)
 
   parsed = []
 
-  for i, v in enumerate(seeds.path()):
-    if v == object:
-      parsed.append(None)
-    else:
-      parsed.append(path[:param.st_seed_bytes])
-
-      path = path[param.st_seed_bytes:]
+  for _ in range(len(seeds.path())):
+    parsed.append(path[:param.st_seed_bytes])
+    path = path[param.st_seed_bytes:]
 
   # apply patch once tree structure is set up
-  seeds.patch(parsed, G(param))
+  seeds.patch(parsed, G(param, salt))
 
   return seeds
 
-def parse_hash(digest, params):
+def PaseHash(digest, params):
   t = params.t
   s = params.s
   w = params.w
 
-  logging.debug(f"digest: %s", [int(v) for v in digest])
-  logging.debug("digest len: %i", len(digest))
+  #logging.debug(f"digest:\n%s", [int(v) for v in digest])
+  #logging.debug("digest_len:\n%i", len(digest))
 
   shake = SHAKE256.new()
 
@@ -168,7 +237,7 @@ def parse_hash(digest, params):
     if h[pos] > 0:
       continue  
 
-    logging.debug(f"pos: {pos}")
+    #logging.debug(f"pos: {pos}")
 
     val = 0
 
@@ -182,7 +251,7 @@ def parse_hash(digest, params):
 
     h[pos] = val
 
-    logging.debug(f"p: {pos}  v: {val}")
+    #logging.debug(f"p: {pos}  v: {val}")
 
     num += 1
 
