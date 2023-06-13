@@ -31,7 +31,7 @@ def check(t):
   try:
     randombytes.randombytes_init(t.seed, None, 256)
 
-    meds = MEDS.MEDS(args.parset, randombytes)
+    meds = MEDS.MEDS(args.parset, randombytes.randombytes)
 
     meds.crypto_sign_keypair()
 
