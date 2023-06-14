@@ -43,14 +43,6 @@ void pmod_mat_mul(pmod_mat_t *C, int C_r, int C_c, pmod_mat_t *A, int A_r, int A
 
 int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
 {
-  if (pmod_mat_row_echelon_ct(M, M_r, M_c) < 0)
-    return -1;
-
-  return pmod_mat_back_substitution_ct(M, M_r, M_c);
-}
-
-int pmod_mat_row_echelon_ct(pmod_mat_t *M, int M_r, int M_c)
-{
   for (int r = 0; r < M_r; r++)
   {
     // swap
@@ -103,11 +95,6 @@ int pmod_mat_row_echelon_ct(pmod_mat_t *M, int M_r, int M_c)
     }
   }
 
-  return 0;
-}
-
-int pmod_mat_back_substitution_ct(pmod_mat_t *M, int M_r, int M_c)
-{
   // back substitution
   for (int r = M_r - 1; r >= 0; r--)
     for (int r2 = 0; r2 < r; r2++)

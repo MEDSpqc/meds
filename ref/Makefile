@@ -68,7 +68,7 @@ RUN_ALL:
 
 KAT: 
 	$(MAKE) KAT_test PARAM=$(PARAM)
-	build/$(PARAM)/KAT_test
+	$(OBJDIR)/KAT_test
 
 KAT_ALL:
 	@for p in `./params.py -l`; do \
