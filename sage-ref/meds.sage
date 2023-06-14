@@ -1,22 +1,15 @@
 #!/usr/bin/env sage
 
-from Crypto.Hash import SHAKE256
-from Crypto.Hash import SHA256
-
-import secrets, time, sys
-import logging
+import secrets, time, sys, logging, binascii
 
 import os.path as path
 
-import binascii
+from Crypto.Hash import SHAKE256
 
-import bitstream
 from bitstream import BitStream
-
+from seedtree import SeedTree
 
 from util import *
-
-from seedtree import SeedTree
 
 import params
 
