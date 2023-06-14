@@ -464,13 +464,13 @@ if __name__ == "__main__":
     logger.setLevel("DEBUG")
     logger.addHandler(handler)
 
-  import randombytes
+  from randombytes import *
 
   # Test and benchmark:
   try:
-    randombytes.randombytes_init(bytes([0]*48), None, 256)
+    randombytes_init(bytes([0]*48), None, 256)
 
-    meds = MEDS(args.parset, randombytes.randombytes)
+    meds = MEDS(args.parset, randombytes)
 
     print(f"parameter set: {meds.params.name}\n")
 

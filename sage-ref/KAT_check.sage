@@ -12,7 +12,7 @@ import argparse
 
 import os.path as path
 
-import randombytes
+from randombytes import *
 
 
 class Task:
@@ -29,9 +29,9 @@ def check(t):
   ret = str(t.count)
 
   try:
-    randombytes.randombytes_init(t.seed, None, 256)
+    randombytes_init(t.seed, None, 256)
 
-    MEDS = meds.MEDS(args.parset, randombytes.randombytes)
+    MEDS = meds.MEDS(args.parset, randombytes)
 
     MEDS.crypto_sign_keypair()
 
