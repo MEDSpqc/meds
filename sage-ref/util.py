@@ -90,8 +90,11 @@ def DecompressG(b, GFq, k, m, n):
 def ExpandFqs(seed, num, GFq):
   numbytes, mask, q, _ = get_cached(GFq)
 
-  shake = SHAKE256.new()
-  shake.update(seed)
+  if type(seed) == SHAKE256.SHAKE256_XOF:
+    shake = seed
+  else:
+    shake = SHAKE256.new()
+    shake.update(seed)
 
   ret = []
 
@@ -111,8 +114,11 @@ def ExpandFqs(seed, num, GFq):
   return ret
 
 def ExpandInvMat(seed, GFq, n):
+  shake = SHAKE256.new()
+  shake.update(seed)
+
   while True:
-    M = matrix(GFq, n, n, ExpandFqs(seed, n*n, GFq))
+    M = matrix(GFq, n, n, ExpandFqs(shake, n*n, GFq))
 
     if M.is_invertible():
       return M
