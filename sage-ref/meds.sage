@@ -6,7 +6,6 @@ import os.path as path
 
 from Crypto.Hash import SHAKE256
 
-from bitstream import BitStream
 from seedtree import SeedTree
 
 from util import *
@@ -38,6 +37,7 @@ class MEDSbase:
 
     A_inv = [None] * s
     B_inv = [None] * s
+    T_inv = [None] * s
     G = [None] * s
 
     delta = self.randombytes(param.sec_seed_bytes)
@@ -53,20 +53,17 @@ class MEDSbase:
 
     for i in range(1, s):
       while True: # repeat until A[i] and B[i] are invertible and G[i] has systematic form
-        sigma_alpha, sigma_T, sigma = XOF(sigma, [param.sec_seed_bytes, param.sec_seed_bytes, param.sec_seed_bytes])
+        sigma_T, sigma = XOF(sigma, [param.sec_seed_bytes, param.sec_seed_bytes])
 
         Ti = ExpandInvMat(sigma_T, GFq, k)
         logging.debug(f"Ti:\n%s", Ti)
-
-        Amm = ExpandFqs(sigma_alpha, 1, GFq)[0]
-        logging.debug(f"Amm:\n{Amm}")
 
         G0prime = Ti * G[0]
 
         logging.debug(f"G0prime:\n%s", G0prime)
 
 
-        check_A_i, check_B_i = solve_symb([matrix(GFq, m, n, G0prime.rows()[i]) for i in range(2)], Amm)
+        check_A_i, check_B_i = solve_symb([matrix(GFq, m, n, G0prime.rows()[j]) for j in range(2)])
 
         if check_A_i == None and check_B_i == None:
           logging.debug("no sol")
@@ -90,9 +87,19 @@ class MEDSbase:
 
         G[i] = pi(A_i, B_i, G[0])
 
+        logging.debug(f"G[{i}]:\n%s", G[i])
+
+        I_k = matrix.identity(ring=GFq, n=k)
+        G[i] = G[i].augment(I_k, subdivide=True)
+
         G[i] = SF(G[i])
 
+        T_inv[i] = G[i].subdivision(0,1).inverse()
+
+        G[i]= G[i].subdivision(0,0)
+
         logging.debug(f"G[{i}]:\n%s", G[i])
+        logging.debug(f"T_inv[{i}]:\n%s", T_inv[i])
 
         # check if we got systematic form
         if G[i] == None:
@@ -121,9 +128,12 @@ class MEDSbase:
 
     for A_inv_i in A_inv[1:]:
       sk += Compress(A_inv_i)
-      
+
     for B_inv_i in B_inv[1:]:
       sk += Compress(B_inv_i)
+
+    for T_inv_i in T_inv[1:]:
+      sk += Compress(T_inv_i)
 
     logging.debug(f"sk:\n0x%s", binascii.hexlify(sk).decode())
 
@@ -156,9 +166,11 @@ class MEDSbase:
 
     A_inv = [None]*s
     B_inv = [None]*s
+    T_inv = [None]*s
 
     l_Fq_nn = ceil((GF_BITS * n * n) / 8)
     l_Fq_mm = ceil((GF_BITS * m * m) / 8)
+    l_Fq_kk = ceil((GF_BITS * k * k) / 8)
 
     for i in range(1, s):
       A_inv[i] = Decompress(sk[f_sk : f_sk + l_Fq_mm], GFq, m, m)
@@ -171,6 +183,12 @@ class MEDSbase:
       f_sk += l_Fq_nn
 
       logging.debug(f"B_inv[i]:\n%s", B_inv[i])
+
+    for i in range(1, s):
+      T_inv[i] = Decompress(sk[f_sk : f_sk + l_Fq_kk], GFq, k, k)
+      f_sk += l_Fq_kk
+
+      logging.debug(f"T_inv[i]:\n%s", T_inv[i])
 
 
     logging.debug(f"G_0:\n%s", G_0)
@@ -190,15 +208,43 @@ class MEDSbase:
     A_tilde = [None]*t
     B_tilde = [None]*t
     G_tilde = [None]*t
+    M_tilde = [None]*t
 
     for i in range(t):
       while True:
-        sigma_A_tilde, sigma_B_tilde, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
+        sigma_M_tilde, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes])
 
-        logging.debug(f"sigma_A_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_A_tilde).decode())
+        logging.debug(f"sigma_M_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_M_tilde).decode())
 
-        A_tilde[i] = ExpandInvMat(sigma_A_tilde, GFq, m)
-        B_tilde[i] = ExpandInvMat(sigma_B_tilde, GFq, n)
+        M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(sigma_M_tilde, 2*k, GFq))
+
+        logging.debug(f"M_tilde[{i}]:\n%s", M_tilde[i])
+
+        if (M_tilde[i].rank() != M_tilde[i].nrows()):
+          continue
+
+
+        G0_prime = M_tilde[i] * G_0
+
+        logging.debug(f"G0_prime:\n%s", G0_prime)
+
+        A_tilde[i], B_tilde_inv = solve_symb([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(2)])
+
+        if A_tilde[i] == None and B_tilde_inv == None:
+          logging.debug("no sol")
+          continue  # try agian for this index
+
+        if not B_tilde_inv.is_invertible():
+          logging.debug("no B_tilde")
+          continue  # try agian for this index
+
+        if not A_tilde[i].is_invertible():
+          logging.debug("no A_tilde_inv")
+          continue  # try agian for this index
+
+
+        B_tilde[i] = B_tilde_inv.inverse()
+
 
         logging.debug(f"A_tilde[{i}]:\n%s", A_tilde[i])
         logging.debug(f"B_tilde[{i}]:\n%s", B_tilde[i])
@@ -237,18 +283,15 @@ class MEDSbase:
 
     logging.debug(f"h:\n{h}")
 
-
     ret = bytes()
 
     for i in range(t):
       if h[i] > 0:
-        mu = A_tilde[i] * A_inv[h[i]]
-        nu = B_inv[h[i]] * B_tilde[i]
+        kappa = M_tilde[i] * T_inv[h[i]]
 
-        logging.debug(f"mu:\n%s", mu)
-        logging.debug(f"nu:\n%s", nu)
+        logging.debug(f"kappa:\n%s", kappa)
 
-        ret += Compress(mu) + Compress(nu)
+        ret += Compress(kappa)
 
     p = SeedTreeToPath(h, rho, alpha, self.params)
 
@@ -298,13 +341,13 @@ class MEDSbase:
       logging.debug(f"G[{i}]:\n%s", G[i])
 
 
-    munu = ms[:(ceil(m*m * GF_BITS / 8) + ceil(n*n * GF_BITS / 8))*w]
-    ms = ms[(ceil(m*m * GF_BITS / 8) + ceil(n*n * GF_BITS / 8))*w:]
+    kappa = ms[:ceil(2*k * GF_BITS / 8)*w]
+    ms = ms[ceil(2*k * GF_BITS / 8)*w:]
     path = ms[:param.seed_tree_cost]; ms = ms[param.seed_tree_cost:]
     d = ms[:param.digest_bytes]; ms = ms[param.digest_bytes:]
     self.st_salt = ms[:param.st_salt_bytes]; msg = ms[param.st_salt_bytes:]
 
-    logging.debug(f"munu:\n0x%s", binascii.hexlify(munu).decode())
+    logging.debug(f"kappa:\n0x%s", binascii.hexlify(kappa).decode())
     logging.debug(f"path:\n0x%s", binascii.hexlify(path).decode())
     logging.debug(f"digest:\n0x%s", binascii.hexlify(d).decode())
     logging.debug(f"alpha:\n0x%s", binascii.hexlify(self.st_salt).decode())
@@ -315,25 +358,36 @@ class MEDSbase:
 
     G_hat = [None] * t
 
-    bs = BitStream(munu)
-
-    l_Fq_nn = ceil((GF_BITS * n * n) / 8)
-    l_Fq_mm = ceil((GF_BITS * m * m) / 8)
+    l_Fq_kk = ceil((GF_BITS * 2 * k) / 8)
 
     f_ms = 0
 
     for i in range(t):
       if h[i] > 0:
-        mu_i = Decompress(munu[f_ms : f_ms + l_Fq_mm], GFq, m, m)
-        f_ms += l_Fq_mm
+        kappa_i = Decompress(kappa[f_ms : f_ms + l_Fq_kk], GFq, 2, k)
+        f_ms += l_Fq_kk
 
-        nu_i = Decompress(munu[f_ms : f_ms + l_Fq_nn], GFq, n, n)
-        f_ms += l_Fq_nn
+        G0_prime = kappa_i * G[h[i]]
 
-        logging.debug(f"mu[{i}]:\n%s", mu_i)
-        logging.debug(f"nu[{i}]:\n%s", nu_i)
+        A_hat_i, B_hat_i_inv = solve_symb([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(2)])
 
-        G_hat[i] = pi(mu_i, nu_i, G[h[i]])
+        if A_hat_i == None and B_hat_inv == None:
+          logging.debug("no sol")
+          continue  # try agian for this index
+
+        if not B_hat_i_inv.is_invertible():
+          logging.debug("no B_hat")
+          continue  # try agian for this index
+
+        if not A_hat_i.is_invertible():
+          logging.debug("no A_hat_inv")
+          continue  # try agian for this index
+
+
+        B_hat_i = B_hat_i_inv.inverse()
+
+
+        G_hat[i] = pi(A_hat_i, B_hat_i, G[h[i]])
 
         logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
 
@@ -348,16 +402,35 @@ class MEDSbase:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
-          sigma_A_hat_i, sigma_B_hat_i, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
+          sigma_M_hat_i, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes])
 
-          logging.debug(f"sigma_A_hat[{i}]:\n%s", [int(i) for i in sigma_A_hat_i])
-          A_hat_i = ExpandInvMat(sigma_A_hat_i, GFq, m)
+          M_hat_i = matrix(GFq, 2, k, ExpandFqs(sigma_M_hat_i, 2*k, GFq))
 
-          logging.debug(f"sigma_B_hat[{i}]:\n%s", [int(i) for i in sigma_B_hat_i])
-          B_hat_i = ExpandInvMat(sigma_B_hat_i, GFq, n)
+          logging.debug(f"M_hat[{i}]:\n%s", M_hat_i)
 
-          logging.debug(f"A_hat[{i}]:\n%s", A_hat_i)
-          logging.debug(f"B_hat[{i}]:\n%s", B_hat_i)
+          if (M_hat_i.rank() != M_hat_i.nrows()):
+            continue
+
+          G0_prime = M_hat_i * G[0]
+
+          logging.debug(f"G0_prime[{i}]:\n%s", G0_prime)
+
+          A_hat_i, B_hat_i_inv = solve_symb([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(2)])
+
+          if A_hat_i == None and B_hat_inv == None:
+            logging.debug("no sol")
+            continue  # try agian for this index
+
+          if not B_hat_i_inv.is_invertible():
+            logging.debug("no B_hat")
+            continue  # try agian for this index
+
+          if not A_hat_i.is_invertible():
+            logging.debug("no A_hat_inv")
+            continue  # try agian for this index
+
+          B_hat_i = B_hat_i_inv.inverse()
+
 
           G_hat[i] = pi(A_hat_i, B_hat_i, G[0])
 
@@ -372,7 +445,7 @@ class MEDSbase:
             # if no systematic form loop to try again for this index
             logging.debug(f"redo G[{i}]")
             continue
-  
+
           # G_hat[i] is in systematic form; breal while loop
           break
 

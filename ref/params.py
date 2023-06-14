@@ -66,9 +66,8 @@ class Param:
     def mat_bytes(i, j):
        return ceil(i*j*q_bits/8)
 
-    return (s-1)*(mat_bytes(m,m) + mat_bytes(n,n)) + sec_seed_bytes + self.pub_seed_bytes
-
-    #return ceil((((s-1)*m*m + (s-1)*n*n + k*(m*n-k))*ceil(log2(q)))/8) + sec_seed_bytes
+    #return (s-1)*(mat_bytes(m,m) + mat_bytes(n,n)) + sec_seed_bytes + self.pub_seed_bytes
+    return (s-1)*(mat_bytes(m,m) + mat_bytes(n,n) + mat_bytes(k,k)) + sec_seed_bytes + self.pub_seed_bytes
 
   @property
   def fiat_shamir(self):
@@ -91,13 +90,15 @@ class Param:
     digest_bytes = self.digest_bytes
     m = self.m
     n = self.n
+    k = self.k
     q = self.q
     t = self.t
     w = self.w
 
     q_bits = ceil(log2(q))
 
-    sig_size = digest_bytes + w*(ceil(m*m*q_bits/8) + ceil(n*n*q_bits/8)) + self.seed_tree_cost
+    sig_size = digest_bytes + w*ceil(2*k*q_bits/8) + self.seed_tree_cost
+    #sig_size = digest_bytes + w*(ceil(m*m*q_bits/8) + ceil(n*n*q_bits/8)) + self.seed_tree_cost
 
     sig_size += self.st_salt_bytes
 
@@ -143,7 +144,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 4093,
         m = 14,
-        n = 14,
+        n = 15,
         k = 14,
         s = 4,
         t = 1152,
@@ -156,7 +157,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 4093,
         m = 14,
-        n = 14,
+        n = 15,
         k = 14,
         s = 5,
         t = 192,
@@ -171,7 +172,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 4093,
         m = 22,
-        n = 22,
+        n = 23,
         k = 22,
         s = 4,
         t = 608,
@@ -184,7 +185,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 4093,
         m = 22,
-        n = 22,
+        n = 23,
         k = 22,
         s = 5,
         t = 160,
@@ -199,7 +200,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 2039,
         m = 30,
-        n = 30,
+        n = 31,
         k = 30,
         s = 5,
         t = 192,
@@ -212,7 +213,7 @@ params = [
         st_salt_bytes = 256 >> 3,
         q = 2039,
         m = 30,
-        n = 30,
+        n = 31,
         k = 30,
         s = 6,
         t = 112,
@@ -226,10 +227,10 @@ params = [
         st_seed_bytes = 128 >> 3,
         st_salt_bytes = 256 >> 3,
         q = 8191,
-        m = 10,
-        n = 10,
-        k = 10,
-        s = 4,
+        m = 4,
+        n = 5,
+        k = 4,
+        s = 5,
         t = 16,
         w = 6,
         _name = "toy"),

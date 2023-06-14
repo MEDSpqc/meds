@@ -3,7 +3,7 @@ from sage.all_cmdline import *   # import sage librarys
 from Crypto.Hash import SHAKE256
 from Crypto.Hash import SHA256
 
-#import logging
+import logging
 
 from seedtree import SeedTree
 from bitstream import BitStream
@@ -43,7 +43,7 @@ def Decompress(b, GFq, r, c):
   bs = BitStream(b)
 
   data = [GFq(bs.read(GF_BITS)) for _ in range(r*c)]
-  
+
   return matrix(GFq, r, c, data)
 
 
@@ -101,12 +101,12 @@ def ExpandFqs(seed, num, GFq):
   for _ in range(num):
     while True:
       val = 0
-  
+
       for i in range(numbytes):
         val += ord(shake.read(1)) << (i*8)
-  
+
       val = val & mask
-  
+
       if val < q:
         ret.append(GFq(val))
         break
@@ -168,7 +168,7 @@ def H(params):
   def hash(m):
     shake = SHAKE256.new()
     shake.update(m)
-  
+
     return shake.read(params.digest_bytes)
 
   return hash
@@ -252,7 +252,7 @@ def PaseHash(digest, params):
 
       for i in range(ceil(log(s,2)/8)):
         val += ord(shake.read(1)) << (i*8)
-    
+
       val &= (1 << ceil(log(s,2))) - 1
 
     h[pos] = val
@@ -369,34 +369,36 @@ def solve_opt(P0prime, Amm):
 
   return A, B_inv
 
-def solve_symb(P0prime, Amm):
+def solve_symb(P0prime):
   m = P0prime[0].nrows()
   n = P0prime[0].ncols()
 
-  GFq = Amm.base_ring()
+  GFq = P0prime[0][0,0].base_ring()
 
   Pj = [None] * 2
 
-  Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
-  Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n])
+  Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j   else GFq(0) for i in range(n)] for j in range(m)])
+  Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j+1 else GFq(0) for i in range(n)] for j in range(m)])
 
   R = PolynomialRing(GFq, m*m + n*n,
-     names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
-           + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
+     names = ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]) + "," \
+           + ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]))
 
   A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
   B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
 
-  A[m-1,m-1] = Amm
-
   eqs1 = Pj[0] * B_inv - A*P0prime[0]
   eqs2 = Pj[1] * B_inv - A*P0prime[1]
 
-  eqs = eqs1.coefficients() + eqs2.coefficients()[:-1]
+  eqs = eqs1.coefficients() + eqs2.coefficients()
 
-  rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()[:-1]] + [-eq.constant_coefficient()] for eq in eqs])
+  rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()] for eq in eqs])
+
+  logging.debug(f"rsys:\n%s", rsys)
 
   rsys_rref = rsys.rref()
+
+  logging.debug(f"rsys:\n%s", rsys_rref)
 
   if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
     #logging.debug("no sol")
@@ -404,11 +406,13 @@ def solve_symb(P0prime, Amm):
 
   sol = rsys_rref.columns()[-1].list()
 
-  A = matrix(GFq, m, sol[n*n:] + [Amm])
-  B_inv = matrix(GFq, m, sol[:n*n])
+  logging.debug("sol:\n%s", sol)
 
-  #logging.debug(f"A:\n%s", A)
-  #logging.debug(f"B_inv:\n%s", B_inv)
+  A = matrix(GFq, m, sol[:m*m])
+  B_inv = matrix(GFq, n, sol[m*m:] + [GFq(-1)])
+
+  logging.debug(f"A:\n%s", A)
+  logging.debug(f"B_inv:\n%s", B_inv)
 
   return A, B_inv
 
