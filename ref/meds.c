@@ -42,10 +42,10 @@ int crypto_sign_keypair(
   uint8_t sigma_G0[MEDS_pub_seed_bytes];
   uint8_t sigma[MEDS_sec_seed_bytes];
 
-  XOF((uint8_t*[]){sigma_G0, sigma, delta},
-       (size_t[]){MEDS_pub_seed_bytes, MEDS_sec_seed_bytes, MEDS_sec_seed_bytes},
+  XOF((uint8_t*[]){sigma_G0, sigma},
+       (size_t[]){MEDS_pub_seed_bytes, MEDS_sec_seed_bytes},
        delta, MEDS_sec_seed_bytes,
-       3);
+       2);
 
   LOG_VEC(sigma, MEDS_sec_seed_bytes);
   LOG_VEC_FMT(sigma_G0, MEDS_pub_seed_bytes, "sigma_G0");
