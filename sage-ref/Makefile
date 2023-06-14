@@ -1,15 +1,15 @@
 PARAM=toy
 
-MEDS.py: MEDS.sage
-	sage -preparse MEDS.sage
-	cp MEDS.sage.py MEDS.py
+meds.py: meds.sage
+	sage -preparse meds.sage
+	cp meds.sage.py meds.py
 
 debug:
 	make -C ../ref DEBUG=true RUN 2> /tmp/c.out
-	./MEDS.sage $(PARAM) 3> /tmp/sage.out
+	./meds.sage $(PARAM) 3> /tmp/sage.out
 	diff /tmp/c.out /tmp/sage.out | head -n 10
 
-KAT: MEDS.py
+KAT: meds.py
 	make -C ../ref KAT PARAM=$(PARAM)
 	./KAT_check.sage ../ref/PQCsignKAT_$(PARAM).rsp $(PARAM)
 

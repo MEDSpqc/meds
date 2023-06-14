@@ -4,10 +4,10 @@ import logging
 import os.path as path
 import binascii
 
-import MEDS
+import meds
 import params
 
-import randombytes
+from randombytes import *
 
 def remove_prefix(text, prefix):
   assert text.startswith(prefix), f"bad prefix - '{text[:16]}' does not start with {prefix}"
@@ -46,18 +46,18 @@ if __name__ == "__main__":
   args.parset = params.par_list[args.parset]
 
 
-  sys.stdout.write(f"PQCsignKAT_{args.parset.sk_size}\n\n")
+  sys.stdout.write(f"PQCsignKAT_{args.parset.name}\n\n")
 
  
-  req_file = f"PQCsignKAT_{args.parset.sk_size}.req"
+  req_file = f"PQCsignKAT_{args.parset.name}.req"
    
   with open(req_file, "w") as req:
-    randombytes.randombytes_init(list(range(48)), None, 256)
+    randombytes_init(list(range(48)), None, 256)
 
     for count in range(args.count):
       req.write(f"count = {count}\n")
 
-      seed = randombytes.randombytes(48)
+      seed = randombytes(48)
 
       req.write("seed = " + "".join([f"{v:02X}" for v in seed]) + "\n")
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
       req.write(f"mlen = {mlen}\n")
 
-      msg = randombytes.randombytes(mlen)
+      msg = randombytes(mlen)
 
       req.write("msg = " + "".join([f"{v:02X}" for v in msg]) + "\n")
 
@@ -75,7 +75,7 @@ if __name__ == "__main__":
       req.write("sm =\n\n")
 
 
-  rsp_file = f"PQCsignKAT_{args.parset.sk_size}.rsp"
+  rsp_file = f"PQCsignKAT_{args.parset.name}.rsp"
 
 
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
       seed = binascii.unhexlify(remove_prefix(line, "seed = "))
       rsp.write("seed = " + "".join([f"{v:02X}" for v in seed]) + "\n")
 
-      randombytes.randombytes_init(seed, None, 256)
+      randombytes_init(seed, None, 256)
 
       line = req.readline().strip()
       mlen = int(remove_prefix(line, "mlen = "))
@@ -102,19 +102,19 @@ if __name__ == "__main__":
       msg = binascii.unhexlify(remove_prefix(line, "msg = "))
       rsp.write("msg = " + "".join([f"{v:02X}" for v in msg]) + "\n")
 
-      meds = MEDS.MEDS(args.parset, randombytes)
+      MEDS = meds.MEDS(args.parset, randombytes)
 
-      meds.crypto_sign_keypair()
+      MEDS.crypto_sign_keypair()
 
-      rsp.write("pk = " + "".join([f"{v:02X}" for v in meds.pk]) + "\n")
-      rsp.write("sk = " + "".join([f"{v:02X}" for v in meds.sk]) + "\n")
+      rsp.write("pk = " + "".join([f"{v:02X}" for v in MEDS.pk]) + "\n")
+      rsp.write("sk = " + "".join([f"{v:02X}" for v in MEDS.sk]) + "\n")
 
-      sm = meds.crypto_sign(msg)
+      sm = MEDS.crypto_sign(msg)
 
       rsp.write(f"smlen = {len(sm)}\n")
       rsp.write("sm = " + "".join([f"{v:02X}" for v in sm]) + "\n\n")
 
-      msg1 = meds.crypto_sign_open(sm)
+      msg1 = MEDS.crypto_sign_open(sm)
 
       assert len(msg) == len(msg1), f"crypto_sign_open returned bad 'mlen': Got {len(msg1)}, expected {len(msg)}\n"
       assert msg == msg1, "crypto_sign_open returned bad 'm' value\n"

@@ -16,7 +16,7 @@ from bitstream import BitStream
 
 from util import *
 
-from SeedTree import SeedTree
+from seedtree import SeedTree
 
 import params
 

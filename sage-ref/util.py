@@ -5,7 +5,7 @@ from Crypto.Hash import SHA256
 
 #import logging
 
-from SeedTree import SeedTree
+from seedtree import SeedTree
 from bitstream import BitStream
 
 

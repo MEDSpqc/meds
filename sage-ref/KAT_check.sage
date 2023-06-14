@@ -5,7 +5,7 @@ import logging
 
 from multiprocessing import Pool
 
-import MEDS
+import meds
 import params
 
 import argparse
@@ -31,19 +31,19 @@ def check(t):
   try:
     randombytes.randombytes_init(t.seed, None, 256)
 
-    meds = MEDS.MEDS(args.parset, randombytes.randombytes)
+    MEDS = meds.MEDS(args.parset, randombytes.randombytes)
 
-    meds.crypto_sign_keypair()
+    MEDS.crypto_sign_keypair()
 
-    assert t.pk == meds.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(meds.pk).decode()}"
+    assert t.pk == MEDS.pk, f"\n{binascii.hexlify(pk).decode()}\n{binascii.hexlify(MEDS.pk).decode()}"
 
-    assert t.sk == meds.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(meds.sk).decode()}"
+    assert t.sk == MEDS.sk, f"\n{binascii.hexlify(sk).decode()}\n{binascii.hexlify(MEDS.sk).decode()}"
 
-    tmp = meds.crypto_sign(t.msg)
+    tmp = MEDS.crypto_sign(t.msg)
 
     assert tmp == t.sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
 
-    tmp = meds.crypto_sign_open(t.sm)
+    tmp = MEDS.crypto_sign_open(t.sm)
 
     assert tmp == t.msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
 

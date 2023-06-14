@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 class BitStream:
   def __init__(self, data = None):
     if data:
@@ -92,16 +90,15 @@ if __name__ == "__main__":
 
   data = [6001, 5101, 3590, 598, 3684, 626, 3614, 7813, 8083, 6243]
 
-  bs = bitstream()
+  bs = BitStream()
 
   for v in data:
     bs.write(v, 13)
 
   print(bs.data.hex())
 
-  bs.bit_pos = 0
-  bs.byte_pos = 0
 
+  bs = BitStream(bs.data)
 
   for i in range(len(data)):
      print(bs.read(13))

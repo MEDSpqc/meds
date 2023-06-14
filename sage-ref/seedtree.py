@@ -1,10 +1,6 @@
-from Crypto.Hash import SHAKE256
-from hashlib import sha256
-import random, math
-
+import math
 
 class Node:
-
   def __init__(self, height, value = object, f = lambda a, b : (a, a), h=0, i=0):
     self.height = height
 
@@ -145,6 +141,9 @@ class SeedTree:
 
 
 if __name__ == "__main__":
+  import random
+  from Crypto.Hash import SHAKE256
+
   leafs = 14
 
   def hash_pair(value, _):
