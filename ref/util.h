@@ -14,9 +14,12 @@ void rnd_inv_matrix(pmod_mat_t *M, int M_r, int M_c, uint8_t *seed, size_t seed_
 
 int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h);
 
+int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm);
 int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm);
 
 void pi(pmod_mat_t *Gout, pmod_mat_t *A, pmod_mat_t *B, pmod_mat_t *G);
+
+int SF(pmod_mat_t *Gprime, pmod_mat_t *G);
 
 #endif
 

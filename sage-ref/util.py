@@ -142,14 +142,13 @@ def pi(A, B, G):
 
   return matrix(GFq, k, m*n, [AGB[i][j,g] for i in range(k) for j in range(m) for g in range(n)])
 
-def SF(M):
-  M = M.echelon_form()
+def SF(G):
+  M = G.submatrix(0,0,G.nrows(),G.nrows())
 
-  # check if we got systematic form
-  if sum([M[j,j] for j in range(M.nrows())]) != M.nrows():
-    return None
+  if M.is_invertible():
+    return M.inverse() * G
 
-  return M
+  return None
 
 
 def XOF(seed, length):
@@ -381,8 +380,8 @@ def solve_symb(P0prime):
   Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j+1 else GFq(0) for i in range(n)] for j in range(m)])
 
   R = PolynomialRing(GFq, m*m + n*n,
-     names = ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]) + "," \
-           + ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]))
+     names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
+           + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
 
   A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
   B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
@@ -408,8 +407,8 @@ def solve_symb(P0prime):
 
   logging.debug("sol:\n%s", sol)
 
-  A = matrix(GFq, m, sol[:m*m])
-  B_inv = matrix(GFq, n, sol[m*m:] + [GFq(-1)])
+  A     = matrix(GFq, m, sol[n*n:] + [GFq(-1)])
+  B_inv = matrix(GFq, n, sol[:n*n])
 
   logging.debug(f"A:\n%s", A)
   logging.debug(f"B_inv:\n%s", B_inv)

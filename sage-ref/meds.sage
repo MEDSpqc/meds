@@ -89,26 +89,18 @@ class MEDSbase:
 
         logging.debug(f"G[{i}]:\n%s", G[i])
 
-        I_k = matrix.identity(ring=GFq, n=k)
-        G[i] = G[i].augment(I_k, subdivide=True)
+        T_inv[i] = G[i].submatrix(0,0,k,k)
 
-        G[i] = SF(G[i])
+        if T_inv[i].is_invertible():
+          G[i] = T_inv[i].inverse() * G[i]
 
-        T_inv[i] = G[i].subdivision(0,1).inverse()
+          logging.debug(f"G[{i}]:\n%s", G[i])
+          logging.debug(f"T_inv[{i}]:\n%s", T_inv[i])
 
-        G[i]= G[i].subdivision(0,0)
+          # G[i] is in systematic form; break while loop
+          break
 
-        logging.debug(f"G[{i}]:\n%s", G[i])
-        logging.debug(f"T_inv[{i}]:\n%s", T_inv[i])
-
-        # check if we got systematic form
-        if G[i] == None:
-          # if no systematic form loop to try again for this index
-          logging.debug(f"redo G[{i}]")
-          continue
-
-        # G[i] is in systematic form; breal while loop
-        break
+        logging.debug(f"redo G[{i}]")
 
 
     # pk
@@ -176,19 +168,19 @@ class MEDSbase:
       A_inv[i] = Decompress(sk[f_sk : f_sk + l_Fq_mm], GFq, m, m)
       f_sk += l_Fq_mm
 
-      logging.debug(f"A_inv[i]:\n%s", A_inv[i])
+      logging.debug(f"A_inv[{i}]:\n%s", A_inv[i])
 
     for i in range(1, s):
       B_inv[i] = Decompress(sk[f_sk : f_sk + l_Fq_nn], GFq, n, n)
       f_sk += l_Fq_nn
 
-      logging.debug(f"B_inv[i]:\n%s", B_inv[i])
+      logging.debug(f"B_inv[{i}]:\n%s", B_inv[i])
 
     for i in range(1, s):
       T_inv[i] = Decompress(sk[f_sk : f_sk + l_Fq_kk], GFq, k, k)
       f_sk += l_Fq_kk
 
-      logging.debug(f"T_inv[i]:\n%s", T_inv[i])
+      logging.debug(f"T_inv[{i}]:\n%s", T_inv[i])
 
 
     logging.debug(f"G_0:\n%s", G_0)
@@ -289,7 +281,7 @@ class MEDSbase:
       if h[i] > 0:
         kappa = M_tilde[i] * T_inv[h[i]]
 
-        logging.debug(f"kappa:\n%s", kappa)
+        logging.debug(f"kappa[{i}]:\n%s", kappa)
 
         ret += Compress(kappa)
 
@@ -367,9 +359,13 @@ class MEDSbase:
         kappa_i = Decompress(kappa[f_ms : f_ms + l_Fq_kk], GFq, 2, k)
         f_ms += l_Fq_kk
 
+        logging.debug(f"kappa[{i}]:\n%s", kappa_i);
+
         G0_prime = kappa_i * G[h[i]]
 
-        A_hat_i, B_hat_i_inv = solve_symb([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(2)])
+        logging.debug(f"G0_prime[{i}]:\n%s", G0_prime);
+
+        A_hat_i, B_hat_i_inv = solve_symb([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(G0_prime.nrows())])
 
         if A_hat_i == None and B_hat_inv == None:
           logging.debug("no sol")
@@ -385,6 +381,10 @@ class MEDSbase:
 
 
         B_hat_i = B_hat_i_inv.inverse()
+
+
+        logging.debug(f"A_hat[{i}]:\n%s", A_hat_i)
+        logging.debug(f"B_hat[{i}]:\n%s", B_hat_i)
 
 
         G_hat[i] = pi(A_hat_i, B_hat_i, G[h[i]])
@@ -403,6 +403,8 @@ class MEDSbase:
 
         while True:
           sigma_M_hat_i, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes])
+
+          logging.debug(f"sigma_M_hat[{i}]:\n0x%s", binascii.hexlify(sigma_M_hat_i).decode())
 
           M_hat_i = matrix(GFq, 2, k, ExpandFqs(sigma_M_hat_i, 2*k, GFq))
 
@@ -430,6 +432,10 @@ class MEDSbase:
             continue  # try agian for this index
 
           B_hat_i = B_hat_i_inv.inverse()
+
+
+          logging.debug(f"A_hat[{i}]:\n%s", A_hat_i)
+          logging.debug(f"B_hat[{i}]:\n%s", B_hat_i)
 
 
           G_hat[i] = pi(A_hat_i, B_hat_i, G[0])
