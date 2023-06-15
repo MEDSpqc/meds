@@ -30,7 +30,7 @@ void pmod_mat_mul(pmod_mat_t *C, int C_r, int C_c, pmod_mat_t *A, int A_r, int A
     {
       uint64_t val = 0;
 
-      for (int i = 0; i < C_r; i++)
+      for (int i = 0; i < A_r; i++)
         val = (val + (uint64_t)pmod_mat_entry(A, A_r, A_c, r, i) * (uint64_t)pmod_mat_entry(B, B_r, B_c, i, c));
 
       tmp[r*C_c + c] = val % MEDS_p;
