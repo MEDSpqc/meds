@@ -50,7 +50,7 @@ class Param:
 
     q_bits = ceil(log2(q))
 
-    return (s - 1) * ceil(((k * (m*n - k) - (m*n - k + (m-1)*n-k)) * ceil(log2(q))) / 8) + pub_seed_bytes
+    return (s - 1) * ceil(((k-2) * (m*n - k) * ceil(log2(q))) / 8) + pub_seed_bytes
 
   @property
   def sk_size(self):
@@ -226,10 +226,10 @@ params = [
         sec_seed_bytes = 256 >> 3,
         st_seed_bytes = 128 >> 3,
         st_salt_bytes = 256 >> 3,
-        q = 8191,
-        m = 4,
-        n = 5,
-        k = 4,
+        q = 4093,
+        m = 10,
+        n = 11,
+        k = 10,
         s = 5,
         t = 16,
         w = 6,

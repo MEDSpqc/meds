@@ -323,7 +323,7 @@ class MEDSbase:
     logging.debug(f"G[0]:\n%s", G[0])
 
 
-    l_Gi = ceil(((k-2)*(m*n-k) + n) * GF_BITS / 8)
+    l_Gi = ceil((k-2)*(m*n-k) * GF_BITS / 8)
     f_pk = param.pub_seed_bytes
 
     for i in range(1, s):

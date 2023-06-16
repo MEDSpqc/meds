@@ -163,9 +163,6 @@ int crypto_sign_keypair(
 
     for (int si = 1; si < MEDS_s; si++)
     {
-      for (int j = (MEDS_m-1)*MEDS_n; j < MEDS_m*MEDS_n; j++)
-        bs_write(&bs, G[si][MEDS_m*MEDS_n + j], GFq_bits);
-
       for (int r = 2; r < MEDS_k; r++)
         for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
           bs_write(&bs, G[si][r*MEDS_m*MEDS_n + j], GFq_bits);
@@ -512,9 +509,6 @@ int crypto_sign_open(
           else
             pmod_mat_set_entry(G[i], MEDS_k, MEDS_m * MEDS_n, r, c, 0);
 
-      for (int j = (MEDS_m-1)*MEDS_n; j < MEDS_m*MEDS_n; j++)
-        G[i][MEDS_m*MEDS_n + j] = bs_read(&bs, GFq_bits);
-
       for (int r = 2; r < MEDS_k; r++)
         for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
           G[i][r*MEDS_m*MEDS_n + j] = bs_read(&bs, GFq_bits);
@@ -523,7 +517,7 @@ int crypto_sign_open(
         for (int j = 0; j < MEDS_n; j++)
           G[i][ii*MEDS_n + j] = ii == j ? 1 : 0;
 
-      for (int ii = 0; ii < MEDS_m-1; ii++)
+      for (int ii = 0; ii < MEDS_m; ii++)
         for (int j = 0; j < MEDS_n; j++)
           G[i][MEDS_m*MEDS_n + ii*MEDS_n + j] = (ii+1) == j ? 1 : 0;
 

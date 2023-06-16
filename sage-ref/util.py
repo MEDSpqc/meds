@@ -53,9 +53,6 @@ def CompressG(M, k, m, n):
 
   bs = BitStream()
 
-  for i in range(n):
-    bs.write(int(M[1,m*n-n+i]), GF_BITS)
-
   for i in range(2, k):
     for j in range(k, m*n):
       bs.write(int(M[i, j]), GF_BITS)
@@ -74,11 +71,8 @@ def DecompressG(b, GFq, k, m, n):
   for i in range(1, m):
     G[0, i*(n+1)] = 1
 
-  for i in range(1, m-1):
+  for i in range(1, m):
     G[1, i*(n+1)+1] = 1
-
-  for i in range(n):
-    G[1,m*n-n+i] = GFq(bs.read(GF_BITS))
 
   for i in range(2, k):
     for j in range(k, m*n):
@@ -262,111 +256,161 @@ def PaseHash(digest, params):
 
   return h
 
+#def solve_opt(P0prime, Amm):
+#  m = P0prime[0].nrows()
+#  n = P0prime[0].ncols()
+#
+#  GFq = Amm.base_ring()
+#
+#  N = -P0prime[0].transpose()
+#
+#  #logging.debug(f"N:\n%s", N)
+#
+#
+#  M = matrix(GFq, n, m + m + 2)
+#
+#  for i in range(m):
+#    for j in range(n):
+#      M[j, i] = -P0prime[1][i, j]
+#
+#  for i in range(m):
+#    for j in range(n):
+#      M[j, i+n] = P0prime[0][i, j]
+#
+#  for j in range(n):
+#    M[j, m+n] = - P0prime[0][m-1,j]*Amm
+#
+#  for j in range(n):
+#    M[j, m+n+1] = P0prime[1][m-1, j]*Amm
+#
+#  #logging.debug(f"M:\n%s", M)
+#
+#  Ms = M.matrix_from_rows_and_columns(range(M.nrows()-1), range(M.ncols()))
+#
+#  Ms = Ms.rref()
+#  M = Ms.stack(M.rows()[-1])
+#
+#  if not all([Ms[i,i] == 1 for i in range(n-1)]):
+#    return None, None
+#
+#  #logging.debug(f"M part:\n%s", M)
+#
+#  for i in range(n-1):
+#    M.add_multiple_of_row(n-1, i, -M[n-1,i])
+#
+#  if M[n-1,n-1] == 0:
+#    return None, None
+#
+#  M.set_row_to_multiple_of_row(n-1, n-1, 1/M[n-1,n-1])
+#
+#  M[-1, -1] = GFq(0)
+#
+#  #logging.debug(f"M red:\n%s", M) 
+#
+#  for i in range(n-1):
+#    M.add_multiple_of_row(i, n-1, -M[i,n-1])
+#
+#  #logging.debug(f"M done:\n%s", M) 
+#
+#
+#  sol = [0] * (n*n + m*m)
+#
+#  sol[-1] = Amm
+#
+#  for i in range(n-1):
+#    sol[n*n + m*m - n + i] = M[i, -1]
+#
+#  for i in range(n):
+#    sol[n*n + m*m - 2*n + i] = M[i, -2]
+#
+#  for i in range(n):
+#    sol[n*n - n + i] = P0prime[0][m-1,i]*Amm
+#
+#  #logging.debug(f"initial sol:\n%s", sol)
+#
+#  # incomplete blocks:
+#
+#  for i in range(n):
+#    for j in range(n-1):
+#      sol[n*n + m*m - 2*n + i] += - M[i, n+n-2-j] * sol[n*n + m*m - 2 - j]
+#      sol[n*n - n + i] += - N[i, m-2-j] * sol[n*n + m*m - 2 - j]
+#
+#  #logging.debug(f"incomplete blocks:\n%s", sol)
+#
+#
+#  # complete blocks:
+#
+#  for block in range(3,n+1):
+#    for i in range(n):
+#      for j in range(n):
+#        sol[n*n + m*m - block*n + i] += - M[i, n+n-1-j] * sol[n*n + m*m - 1 - (block-2)*n - j]
+#
+#  for block in range(2,n+1):
+#    for i in range(n):
+#      for j in range(n):
+#        sol[n*n - block*n + i] += - N[i, m-1-j] * sol[n*n + m*m - 1 - (block-1)*n - j]
+#
+#  #logging.debug(f"complete blocks:\n%s", sol)
+#
+#
+#  A = matrix(GFq, m,m, sol[n*n:])
+#  B_inv = matrix(GFq, n,n, sol[:n*n])
+#
+#  #logging.debug(f"A:\n%s", A)
+#  #logging.debug(f"B_inv:\n%s", B_inv)
+#
+#  return A, B_inv
+#
+#def solve_symb(P0prime):
+#  m = P0prime[0].nrows()
+#  n = P0prime[0].ncols()
+#
+#  GFq = P0prime[0][0,0].base_ring()
+#
+#  Pj = [None] * 2
+#
+#  Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j   else GFq(0) for i in range(n)] for j in range(m)])
+#  Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j+1 else GFq(0) for i in range(n)] for j in range(m)])
+#
+#  R = PolynomialRing(GFq, m*m + n*n,
+#     names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
+#           + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
+#
+#  A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
+#  B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
+#
+#  eqs1 = Pj[0] * B_inv - A*P0prime[0]
+#  eqs2 = Pj[1] * B_inv - A*P0prime[1]
+#
+#  eqs1 = eqs1.coefficients()
+#  eqs2 = eqs2.coefficients()
+#
+#  eqs = eqs1 + eqs2
+#
+#  rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()] for eq in eqs])
+#
+#  logging.debug(f"rsys:\n%s", rsys)
+#
+#  rsys_rref = rsys.rref()
+#
+#  logging.debug(f"rsys:\n%s", rsys_rref)
+#
+#  if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
+#    #logging.debug("no sol")
+#    return None, None
+#
+#  sol = rsys_rref.columns()[-1].list() + [GFq(-1)]
+#
+#  logging.debug("sol:\n%s", sol)
+#
+#  A     = matrix(GFq, m, sol[n*n:])
+#  B_inv = matrix(GFq, n, sol[:n*n])
+#
+#  logging.debug(f"A:\n%s", A)
+#  logging.debug(f"B_inv:\n%s", B_inv)
+#
+#  return A, B_inv
 
-def solve_opt(P0prime, Amm):
-  m = P0prime[0].nrows()
-  n = P0prime[0].ncols()
-
-  GFq = Amm.base_ring()
-
-  N = -P0prime[0].transpose()
-
-  #logging.debug(f"N:\n%s", N)
-
-
-  M = matrix(GFq, n, m + m + 2)
-
-  for i in range(m):
-    for j in range(n):
-      M[j, i] = -P0prime[1][i, j]
-
-  for i in range(m):
-    for j in range(n):
-      M[j, i+n] = P0prime[0][i, j]
-
-  for j in range(n):
-    M[j, m+n] = - P0prime[0][m-1,j]*Amm
-
-  for j in range(n):
-    M[j, m+n+1] = P0prime[1][m-1, j]*Amm
-
-  #logging.debug(f"M:\n%s", M)
-
-  Ms = M.matrix_from_rows_and_columns(range(M.nrows()-1), range(M.ncols()))
-
-  Ms = Ms.rref()
-  M = Ms.stack(M.rows()[-1])
-
-  if not all([Ms[i,i] == 1 for i in range(n-1)]):
-    return None, None
-
-  #logging.debug(f"M part:\n%s", M)
-
-  for i in range(n-1):
-    M.add_multiple_of_row(n-1, i, -M[n-1,i])
-
-  if M[n-1,n-1] == 0:
-    return None, None
-
-  M.set_row_to_multiple_of_row(n-1, n-1, 1/M[n-1,n-1])
-
-  M[-1, -1] = GFq(0)
-
-  #logging.debug(f"M red:\n%s", M) 
-
-  for i in range(n-1):
-    M.add_multiple_of_row(i, n-1, -M[i,n-1])
-
-  #logging.debug(f"M done:\n%s", M) 
-
-
-  sol = [0] * (n*n + m*m)
-
-  sol[-1] = Amm
-
-  for i in range(n-1):
-    sol[n*n + m*m - n + i] = M[i, -1]
-
-  for i in range(n):
-    sol[n*n + m*m - 2*n + i] = M[i, -2]
-
-  for i in range(n):
-    sol[n*n - n + i] = P0prime[0][m-1,i]*Amm
-
-  #logging.debug(f"initial sol:\n%s", sol)
-
-  # incomplete blocks:
-
-  for i in range(n):
-    for j in range(n-1):
-      sol[n*n + m*m - 2*n + i] += - M[i, n+n-2-j] * sol[n*n + m*m - 2 - j]
-      sol[n*n - n + i] += - N[i, m-2-j] * sol[n*n + m*m - 2 - j]
-
-  #logging.debug(f"incomplete blocks:\n%s", sol)
-
-
-  # complete blocks:
-
-  for block in range(3,n+1):
-    for i in range(n):
-      for j in range(n):
-        sol[n*n + m*m - block*n + i] += - M[i, n+n-1-j] * sol[n*n + m*m - 1 - (block-2)*n - j]
-
-  for block in range(2,n+1):
-    for i in range(n):
-      for j in range(n):
-        sol[n*n - block*n + i] += - N[i, m-1-j] * sol[n*n + m*m - 1 - (block-1)*n - j]
-
-  #logging.debug(f"complete blocks:\n%s", sol)
-
-
-  A = matrix(GFq, m,m, sol[n*n:])
-  B_inv = matrix(GFq, n,n, sol[:n*n])
-
-  #logging.debug(f"A:\n%s", A)
-  #logging.debug(f"B_inv:\n%s", B_inv)
-
-  return A, B_inv
 
 def solve_symb(P0prime):
   m = P0prime[0].nrows()
@@ -374,40 +418,123 @@ def solve_symb(P0prime):
 
   GFq = P0prime[0][0,0].base_ring()
 
-  Pj = [None] * 2
+  ###################
+  N = -P0prime[1].transpose()
+  N = N.augment(P0prime[0].transpose())
 
-  Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j   else GFq(0) for i in range(n)] for j in range(m)])
-  Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j+1 else GFq(0) for i in range(n)] for j in range(m)])
+  N0 = N.submatrix(0,0,N.nrows()-1, N.ncols())
+  N1 = N.submatrix(N.nrows()-1,0,1, N.ncols())
 
-  R = PolynomialRing(GFq, m*m + n*n,
-     names = ','.join([f"b{i}_{j}" for i in range(n) for j in range(n)]) + "," \
-           + ','.join([f"a{i}_{j}" for i in range(m) for j in range(m)]))
+  logging.debug(f"N:\n%s", N0)
 
-  A     = matrix(R, m, var(','.join([f"a{i}_{j}" for i in range(m) for j in range(m)])))
-  B_inv = matrix(R, n, var(','.join([f"b{i}_{j}" for i in range(n) for j in range(n)])))
+  N = N0.rref()
 
-  eqs1 = Pj[0] * B_inv - A*P0prime[0]
-  eqs2 = Pj[1] * B_inv - A*P0prime[1]
+  logging.debug(f"N:\n%s", N)
 
-  eqs = eqs1.coefficients() + eqs2.coefficients()
+  for i in range(m-1):
+    N = N.stack(N1)
 
-  rsys = matrix(GFq, [[eq.coefficient(v) for v in R.gens()] for eq in eqs])
 
-  logging.debug(f"rsys:\n%s", rsys)
+  N1 = N.submatrix(m,0,m-1, N.ncols())
 
-  rsys_rref = rsys.rref()
+  logging.debug(f"N1:\n%s", N1)
 
-  logging.debug(f"rsys:\n%s", rsys_rref)
+  for block in range(1, m):
+    for row in range(block):
+      for i in range(m):
+        for j in range(m):
+          N1[row, j+m] = N1[row, j+m] - N1[row, i] * N[i, j+m]
 
-  if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
-    #logging.debug("no sol")
-    return None, None
+      for i in range(m):
+        N1[row, i] = N1[row, i+m]
+        N1[row, i+m] = 0
 
-  sol = rsys_rref.columns()[-1].list()
+  logging.debug(f"N1:\n%s", N1)
+
+  N1 = N1.submatrix(0,0,m-1, m)
+
+  N1 = N1.rref()
+
+  N = N.submatrix(0,m, m, m)
+
+  logging.debug(f"N1:\n%s", N1)
+
+
+  sol = [0] * (m*m + n*n)
+
+  for i in range(m-1):
+    sol[2*m*n - (m-1) + i] = N1[i, m-1]
+
+  logging.debug(f"N:\n%s", N)
+
+  for i in range(m):
+    sol[2*m*n - m - (m-1) + i] = N[i, m-1]
+
+  logging.debug(f"sol:\n%s", sol)
+
+
+  for c in reversed(range(m-1)):
+    for r in range(m):
+      sol[2*m*n - m - (m-1) + r] -= N[r, c] * sol[2*m*n - (m-1) + c]
+
+  logging.debug(f"sol:\n%s", sol)
+
+
+  P = -P0prime[1].transpose()
+
+  logging.debug(f"P01nt:\n%s", P)
+
+  for i in range(n):
+    sol[m*n + i] = P[i, m-1]
+
+  logging.debug(f"sol:\n%s", sol)
+
+  for c in reversed(range(m-1)):
+    for r in range(n):
+      sol[m*n + r] -= P[r, c] * N1[c, m-1]
+
+  logging.debug(f"sol:\n%s", sol)
+
+
+  P = -P0prime[0].transpose()
+
+  logging.debug(f"P00nt:\n%s", P)
+
+  for i in range(n):
+    sol[(m-1)*n + i] = P[i, m-1]
+
+  logging.debug(f"sol:\n%s", sol)
+
+  for c in reversed(range(m-1)):
+    for r in range(n):
+      sol[(m-1)*n +r] -= P[r, c] * N1[c, m-1]
+
+  logging.debug(f"sol:\n%s", sol)
+
+  for b in reversed(range(m-2)):
+    for c in reversed(range(m)):
+      for r in range(m):
+        sol[(m+1)*n + b*m + r] -= N[r, c] * sol[(m+1)*n + b*m + m + c]
+
+  logging.debug(f"sol:\n%s", sol)
+
+
+  P = -P0prime[0].transpose()
+
+  for b in reversed(range(m-1)):
+    for c in reversed(range(m)):
+      for r in range(n):
+        sol[b*n + r] -=  P[r, c] * sol[2*m*n - (m-1) - (m-1-b)*m + c]
+
+  logging.debug(f"sol:\n%s", sol)
+
+  sol[-1] = GFq(-1)
+
+  ###################
+
 
   logging.debug("sol:\n%s", sol)
-
-  A     = matrix(GFq, m, sol[n*n:] + [GFq(-1)])
+  A     = matrix(GFq, m, sol[n*n:])
   B_inv = matrix(GFq, n, sol[:n*n])
 
   logging.debug(f"A:\n%s", A)
@@ -415,65 +542,65 @@ def solve_symb(P0prime):
 
   return A, B_inv
 
-def solve_comp(P0prime, Amm):
-  m = P0prime[0].nrows()
-  n = P0prime[0].ncols()
-
-  GFq = Amm.base_ring()
-
-  Pj = [None] * 2
-
-  Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
-  Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n])
-
-  rsys = []
-
-  for l in range(n):
-    for j in range(m):
-      tmp = [GFq(0)] * (m^2 + n^2)
-
-      for i in range(m):
-        tmp[m*m + l*m + i] = - P0prime[0][i,j]
-
-      for i in range(n):
-        tmp[i*n + j] = Pj[0][l,i]
-
-      if l == n-1:
-        tmp[m*m + n*n - 1] = Amm * P0prime[0][n-1,j]
-
-      rsys.append(tmp)
-
-  for l in range(n):
-    for j in range(m if l < n-1 else m-1):
-      tmp = [GFq(0)] * (m^2 + n^2)
-
-      for i in range(m):
-        tmp[m*m + l*m + i] = - P0prime[1][i,j]
-
-      for i in range(n):
-        tmp[i*n + j] = Pj[1][l,i]
-
-      if l == n-1:
-        tmp[m*m + n*n - 1] = Amm * P0prime[1][n-1,j]
-
-      rsys.append(tmp)
-
-  rsys = matrix(GFq, ncols=m^2 + n^2, entries=rsys)
-
-  rsys_rref = rsys.rref()
-
-  if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
-    #logging.debug("no sol")
-    return None, None
-
-  sol = rsys_rref.columns()[-1].list()
-
-  A = matrix(GFq, m, sol[n*n:] + [Amm])
-  B_inv = matrix(GFq, m, sol[:n*n])
-
-  #logging.debug(f"A:\n%s", A)
-  #logging.debug(f"B_inv:\n%s", B_inv)
-
-  return A, B_inv
+# def solve_comp(P0prime, Amm):
+#   m = P0prime[0].nrows()
+#   n = P0prime[0].ncols()
+# 
+#   GFq = Amm.base_ring()
+# 
+#   Pj = [None] * 2
+# 
+#   Pj[0] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(m)])
+#   Pj[1] = matrix(GFq, m, n, [[GFq(1) if i==j else GFq(0) for i in range(n)] for j in range(1,m)] + [[GFq(0)]*n])
+# 
+#   rsys = []
+# 
+#   for l in range(n):
+#     for j in range(m):
+#       tmp = [GFq(0)] * (m^2 + n^2)
+# 
+#       for i in range(m):
+#         tmp[m*m + l*m + i] = - P0prime[0][i,j]
+# 
+#       for i in range(n):
+#         tmp[i*n + j] = Pj[0][l,i]
+# 
+#       if l == n-1:
+#         tmp[m*m + n*n - 1] = Amm * P0prime[0][n-1,j]
+# 
+#       rsys.append(tmp)
+# 
+#   for l in range(n):
+#     for j in range(m if l < n-1 else m-1):
+#       tmp = [GFq(0)] * (m^2 + n^2)
+# 
+#       for i in range(m):
+#         tmp[m*m + l*m + i] = - P0prime[1][i,j]
+# 
+#       for i in range(n):
+#         tmp[i*n + j] = Pj[1][l,i]
+# 
+#       if l == n-1:
+#         tmp[m*m + n*n - 1] = Amm * P0prime[1][n-1,j]
+# 
+#       rsys.append(tmp)
+# 
+#   rsys = matrix(GFq, ncols=m^2 + n^2, entries=rsys)
+# 
+#   rsys_rref = rsys.rref()
+# 
+#   if not all([rsys_rref[i][i] == 1 for i in range(rsys_rref.nrows())]):
+#     #logging.debug("no sol")
+#     return None, None
+# 
+#   sol = rsys_rref.columns()[-1].list()
+# 
+#   A = matrix(GFq, m, sol[n*n:] + [Amm])
+#   B_inv = matrix(GFq, m, sol[:n*n])
+# 
+#   #logging.debug(f"A:\n%s", A)
+#   #logging.debug(f"B_inv:\n%s", B_inv)
+# 
+#   return A, B_inv
 
 
