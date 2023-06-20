@@ -43,6 +43,13 @@ void pmod_mat_mul(pmod_mat_t *C, int C_r, int C_c, pmod_mat_t *A, int A_r, int A
 
 int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
 {
+  return pmod_mat_syst_ct_partial(M, M_r, M_c, false);
+}
+
+int pmod_mat_syst_ct_partial(pmod_mat_t *M, int M_r, int M_c, bool partial)
+{
+  int ret = 0;
+
   for (int r = 0; r < M_r; r++)
   {
     // swap
@@ -63,7 +70,16 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
     uint64_t val = pmod_mat_entry(M, M_r, M_c, r, r);
 
     if (val == 0)
-      return -1;
+    {
+      if (partial)
+      {
+        M_r = r;
+        ret = r;
+        break;
+      }
+      else
+        return -1;
+    }
 
     val = GF_inv(val);
 
@@ -127,7 +143,7 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
       }
     }
 
-  return 0;
+  return ret;
 }
 
 GFq_t GF_inv(GFq_t val)

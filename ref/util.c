@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "fips202.h"
@@ -187,7 +188,7 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
   return 0;
 }
 
-int XXX_solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
+int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
 {
   pmod_mat_t Pj0[MEDS_m * MEDS_n] = {0};
   pmod_mat_t Pj1[MEDS_m * MEDS_n] = {0};
@@ -228,16 +229,54 @@ int XXX_solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t 
       tmp += MEDS_m * MEDS_m + MEDS_n * MEDS_n;
     }
 
-  //LOG_MAT(rsys, (MEDS_m * MEDS_m + MEDS_n * MEDS_n - 1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
+  //LOG_MAT(rsys, (2 * MEDS_m * MEDS_n), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
+
+  int r = 0;
 
   // solve system
-  if (pmod_mat_syst_ct(rsys, (MEDS_m * MEDS_m + MEDS_n * MEDS_n - 1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n)) < 0)
+  if ((r = pmod_mat_syst_ct_partial(rsys, (2 * MEDS_m * MEDS_n), (MEDS_m * MEDS_m + MEDS_n * MEDS_n), partial)) != 0)
   {
-    LOG("no sol");
-    return -1;
+    if (partial)
+    {
+      //LOG_MAT(rsys, (2 * MEDS_m * MEDS_n -1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
+
+      GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n];
+
+      for (int i = 0; i < r; i++)
+        sol[i] = rsys[i * (MEDS_m * MEDS_m + MEDS_n * MEDS_n) + r];
+
+      sol[r] = MEDS_p - 1;
+
+      for (int i = r+1; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
+        sol[i] = 0;
+
+//      for (int i = 0; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
+//        printf("%i ", sol[i]);
+//      printf("\n");
+
+
+      LOG_VEC(sol, MEDS_m * MEDS_m + MEDS_n * MEDS_n);
+
+
+      for (int i = 0; i < MEDS_m*MEDS_m; i++)
+        A[i] = sol[i + MEDS_n*MEDS_n];
+
+      for (int i = 0; i < MEDS_n*MEDS_n; i++)
+        B_inv[i] = sol[i];
+
+      LOG_MAT(A, MEDS_m, MEDS_m);
+      LOG_MAT(B_inv, MEDS_n, MEDS_n);
+
+      return 0;
+    }
+    else
+    {
+      LOG("no sol");
+      return -1;
+    }
   }
 
-  //LOG_MAT(rsys, (MEDS_m * MEDS_m + MEDS_n * MEDS_n - 1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
+  //LOG_MAT(rsys, (2 * MEDS_m * MEDS_n), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
 
   GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n];
 
@@ -262,7 +301,7 @@ int XXX_solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t 
   return 0;
 }
 
-int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
+int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
 {
 //  m = P0prime[0].nrows()
 //  n = P0prime[0].ncols()
@@ -274,10 +313,10 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 //  N = -P0prime[1].transpose()
 //  N = N.augment(P0prime[0].transpose())
 
-  pmod_mat_t N[(MEDS_n-1) * (2 * MEDS_m)] = {0};
+  pmod_mat_t N[MEDS_n * (2 * MEDS_m)] = {0};
 
   for (int i = 0; i < MEDS_m; i++)
-    for (int j = 0; j < MEDS_n-1; j++)
+    for (int j = 0; j < MEDS_n; j++)
     {
       pmod_mat_set_entry(N, MEDS_n, 2 * MEDS_m, j, i,
           (MEDS_p - pmod_mat_entry((G0prime + (MEDS_m*MEDS_n)), MEDS_m, MEDS_n, i, j)) % MEDS_p);
@@ -286,7 +325,7 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
           pmod_mat_entry(G0prime, MEDS_m, MEDS_n, i, j));
     }
 
-  LOG_MAT(N, MEDS_n-1, 2 * MEDS_m);
+  LOG_MAT(N, MEDS_n, 2 * MEDS_m);
 
 
 //  N0 = N.submatrix(0,0,N.nrows()-1, N.ncols())
@@ -294,9 +333,34 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 //
 //  N = N0.rref()
 
-  pmod_mat_syst_ct(N, MEDS_n-1, 2 * MEDS_m);
+//  int do_exit = -1;
 
-  LOG_MAT(N, MEDS_n-1, 2 * MEDS_m);
+ // if (pmod_mat_syst_ct(N, MEDS_n-1, 2 * MEDS_m) != 0)
+  if (pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, partial) < 0)
+  {
+//    if (partial)
+//    {
+//      LOG_MAT(N, MEDS_n, 2 * MEDS_m);
+//
+////      pmod_mat_fprint(stdout, N, MEDS_n, 2*MEDS_m);
+////      printf("\nugh\n\n");
+////
+////      do_exit = 1;
+////      exit(-1);
+////      int ret = solve_symb(A, B_inv, G0prime, partial);
+////
+////      pmod_mat_fprint(stdout, A, MEDS_m, MEDS_m);
+////
+////      return ret;
+////
+////      pmod_mat_fprint(stderr, N, MEDS_n-1, 2 * MEDS_m);
+////      return -1;
+//    }
+//    else
+      return -1;
+  }
+
+  LOG_MAT(N, MEDS_n, 2 * MEDS_m);
 
 
 //  for i in range(m-1):
@@ -311,15 +375,15 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   for (int i = 0; i < MEDS_m; i++)
     for (int j = 0; j < MEDS_m-1; j++)
     {
-      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, i,
-          (MEDS_p - pmod_mat_entry((G0prime + (MEDS_m*MEDS_n)), MEDS_m, MEDS_n, i, MEDS_n-1)) % MEDS_p);
-
-      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, MEDS_m+i,
-          pmod_mat_entry(G0prime, MEDS_m, MEDS_n, i, MEDS_n-1));
+      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, MEDS_m + i,
+          pmod_mat_entry(N, MEDS_n, 2 * MEDS_m, MEDS_n-1, MEDS_m + i));
+//          (MEDS_p - pmod_mat_entry((G0prime + (MEDS_m*MEDS_n)), MEDS_m, MEDS_n, i, MEDS_n-1)) % MEDS_p);
+//
+//      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, MEDS_m+i,
+//          pmod_mat_entry(G0prime, MEDS_m, MEDS_n, i, MEDS_n-1));
     }
 
   LOG_MAT(N1, MEDS_m-1, 2 * MEDS_m);
-
 
 //  for block in range(1, m):
 //    for row in range(block):
@@ -362,6 +426,9 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   LOG_MAT(N1, MEDS_m-1, 2 * MEDS_m);
 
 
+//  exit(-1);
+
+
 //  N1 = N1.submatrix(0,0,m-1, m)
 //
 //  N1 = N1.rref()
@@ -382,12 +449,6 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
   // Consider N MEDS_n-1 x MEDS_m, now...
 
-
-  pmod_mat_syst_ct(N1, MEDS_m-1, MEDS_m);
-
-  LOG_MAT(N1, MEDS_m-1, MEDS_m);
-
-
 //  sol = [0] * (m*m + n*n)
 //
 //  for i in range(m-1):
@@ -397,23 +458,67 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 //  for i in range(m):
 //    sol[2*m*n - m - (m-1) + i] = N[i, m-1]
 
+
   GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n] = {0};
 
-  for (int i = 0; i < MEDS_m-1; i++)
-    sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, MEDS_m-1);
+  int N1_r = MEDS_m-1;
+
+  //if ((N1_r = pmod_mat_syst_ct_partial(N1, MEDS_m-1, MEDS_m, partial)) != 0)
+  if ((N1_r = pmod_mat_syst_ct(N1, MEDS_m-1, MEDS_m)) != 0)
+  {
+//    if (partial)
+//    {
+//      LOG_MAT(N1, MEDS_m-1, MEDS_m);
+//
+//      for (int i = 0; i < N1_r; i++)
+//        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, N1_r);
+//
+//      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + N1_r] = MEDS_p - 1;
+//
+//      for (int i = N1_r+1; i < MEDS_m-1; i++)
+//        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = 0;
+//
+////      for (int i = 0; i < MEDS_m*MEDS_m + MEDS_n*MEDS_n; i++)
+////        printf("%i ", sol[i]);
+////      printf("\n\n%i %i\n\n", N1_r, MEDS_m-1);
+////
+////      pmod_mat_fprint(stdout, N1, MEDS_m-1, MEDS_m);
+////      printf("\n");
+//
+//      return -1;
+//      exit(-1);
+//    }
+//    else
+      return -1;
+  }
+//  else
+//  {
+    LOG_MAT(N1, MEDS_m-1, MEDS_m);
+
+    for (int i = 0; i < MEDS_m-1; i++)
+      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, MEDS_m-1);
+
+    sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = MEDS_p - 1;
+
+    N1_r = MEDS_m-1;
+//  }
 
   LOG_MAT(N, MEDS_n-1, MEDS_m);
 
   for (int i = 0; i < MEDS_m; i++)
-    sol[2*MEDS_m*MEDS_n - MEDS_m - (MEDS_m-1) + i] = pmod_mat_entry(N, MEDS_n-1, MEDS_m, i, MEDS_m-1);
+    sol[2*MEDS_m*MEDS_n - MEDS_m - (MEDS_m-1) + i] = pmod_mat_entry(N, MEDS_n-1, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
+
+//  if (do_exit == 1) exit(-1);
+
+//  sol[-1] = GFq(-1)
 
 //  for c in reversed(range(m-1)):
 //    for r in range(m):
 //      sol[2*m*n - m - (m-1) + r] -= N[r, c] * sol[2*m*n - (m-1) + c]
 
-  for (int c = MEDS_m - 2; c >= 0; c--)
+  for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_m; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(N, MEDS_n-1, MEDS_m, r, c);
@@ -450,15 +555,18 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   LOG_MAT(P01nt, MEDS_n, MEDS_m);
 
   for (int i = 0; i < MEDS_n; i++)
-    sol[MEDS_m*MEDS_n + i] = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, i, MEDS_m-1);
+    sol[MEDS_m*MEDS_n + i] = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
-  for (int c = MEDS_m - 2; c >= 0; c--)
+  for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_n; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, r, c);
-      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, MEDS_m-1);
+      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, N1_r);
+
+//  if (N1_r != MEDS_m -1)
+//      printf("%i\n", tmp2);
 
       uint64_t prod = (tmp1 * tmp2) % MEDS_p;
 
@@ -469,7 +577,9 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
       sol[MEDS_m*MEDS_n + r] = val;
     }
 
+
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
+
 
 
 //  P = -P0prime[0].transpose()
@@ -497,15 +607,15 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
   LOG_MAT(P00nt, MEDS_n, MEDS_m);
 
   for (int i = 0; i < MEDS_n; i++)
-    sol[(MEDS_m-1)*MEDS_n + i] = pmod_mat_entry(P00nt, MEDS_n, MEDS_m, i, MEDS_m-1);
+    sol[(MEDS_m-1)*MEDS_n + i] = pmod_mat_entry(P00nt, MEDS_n, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
-  for (int c = MEDS_m - 2; c >= 0; c--)
+  for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_n; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(P00nt, MEDS_n, MEDS_m, r, c);
-      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, MEDS_m-1);
+      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, N1_r);
 
       uint64_t prod = (tmp1 * tmp2) % MEDS_p;
 
@@ -517,6 +627,7 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
     }
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
+
 
   for (int b = MEDS_m-3; b >= 0; b--)
     for (int c = MEDS_m - 1; c >= 0; c--)
@@ -563,10 +674,6 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
       }
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
-
-//  sol[-1] = GFq(-1)
-
-  sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = MEDS_p - 1;
 
 //  ###################
 

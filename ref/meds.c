@@ -14,6 +14,8 @@
 
 #include "meds.h"
 
+#define solve solve_opt
+
 #include "seed.h"
 #include "util.h"
 #include "bitstream.h"
@@ -31,7 +33,6 @@ int crypto_sign_keypair(
   uint8_t delta[MEDS_sec_seed_bytes];
 
   randombytes(delta, MEDS_sec_seed_bytes);
-
 
   pmod_mat_t G_data[MEDS_k * MEDS_m * MEDS_n * MEDS_s];
   pmod_mat_t *G[MEDS_s];
@@ -88,9 +89,6 @@ int crypto_sign_keypair(
 
       rnd_inv_matrix(Ti, MEDS_k, MEDS_k, sigma_Ti, MEDS_sec_seed_bytes);
 
-      GFq_t Amm = -1;
-
-
       LOG_MAT(Ti, MEDS_k, MEDS_k);
 
       pmod_mat_t G0prime[MEDS_k * MEDS_m * MEDS_n];
@@ -102,7 +100,7 @@ int crypto_sign_keypair(
       LOG_MAT(G0prime, MEDS_k, MEDS_m * MEDS_n);
 
 
-      if (solve_symb(A, B_inv[i], G0prime, Amm) < 0)
+      if (solve(A, B_inv[i], G0prime, false) < 0)
       {
         LOG("no sol");
         continue;
@@ -228,11 +226,6 @@ int crypto_sign(
     const unsigned char *sk
   )
 {
-  uint8_t delta[MEDS_sec_seed_bytes];
-
-  randombytes(delta, MEDS_sec_seed_bytes);
-
-
   // skip secret seed
   sk += MEDS_sec_seed_bytes;
 
@@ -304,6 +297,13 @@ int crypto_sign(
 
   LOG_MAT(G_0, MEDS_k, MEDS_m*MEDS_n);
 
+
+redo:
+
+  uint8_t delta[MEDS_sec_seed_bytes];
+
+  randombytes(delta, MEDS_sec_seed_bytes);
+
   LOG_VEC(delta, MEDS_sec_seed_bytes);
 
 
@@ -374,7 +374,7 @@ int crypto_sign(
       pmod_mat_t A_tilde_inv[MEDS_m * MEDS_m];
       pmod_mat_t B_tilde_inv[MEDS_n * MEDS_n];
 
-      if (solve_symb(A_tilde[i], B_tilde_inv, G0_prime, -1) < 0)
+      if (solve(A_tilde[i], B_tilde_inv, G0_prime, false) < 0)
       {
         LOG("no sol");
         continue;
@@ -460,6 +460,29 @@ int crypto_sign(
 
         for (int j = 0; j <2*MEDS_k; j++)
           bs_write(&bs, kappa[j], GFq_bits);
+
+
+//        pmod_mat_t tmp[MEDS_m*MEDS_m];
+//
+//        pmod_mat_mul(tmp, MEDS_m, MEDS_m, A_tilde[i], MEDS_m, MEDS_m, A_inv[h[i]], MEDS_m, MEDS_m);
+//
+//        printf("h[%i] > 0\n", i);
+//        pmod_mat_fprint(stdout, tmp, MEDS_m, MEDS_m);
+//        printf("\n");
+
+        uint64_t tmp = 0;
+
+        // Compute bottom right value of A_tilde[i] * A_inv[h[i]].
+        for (int j = 0; j < MEDS_m; j++)
+          tmp = (A_tilde[i][(MEDS_m-1)*MEDS_m + j] * A_inv[h[i]][j * MEDS_m + MEDS_m - 1]) % MEDS_p;
+
+        if (tmp == 0) //[MEDS_m*MEDS_m - 1] == 0)
+        {
+          LOG("REDO A[-1,-1] == 0");
+          printf("REDO A[-1,-1] == 0\n");
+//          exit(-1);
+          goto redo;
+        }
       }
 
       bs_finalize(&bs);
@@ -588,27 +611,31 @@ int crypto_sign_open(
       pmod_mat_t A_hat_inv[MEDS_m * MEDS_m];
       pmod_mat_t B_hat_inv[MEDS_n * MEDS_n];
 
-      if (solve_symb(A_hat, B_hat_inv, G0_prime, -1) < 0)
+      if (solve(A_hat, B_hat_inv, G0_prime, true) < 0)
       {
         LOG("no sol");
-        continue;
+        printf("no sol\n");
+        return -1;
       }
 
       if (pmod_mat_inv(B_hat, B_hat_inv, MEDS_n, MEDS_n) < 0)
       {
         LOG("no B_hat");
-        continue;
+        return -1;
       }
 
       if (pmod_mat_inv(A_hat_inv, A_hat, MEDS_m, MEDS_m) < 0)
       {
         LOG("no A_hat_inv");
-        continue;
+        return -1;
       }
 
       LOG_MAT_FMT(A_hat, MEDS_m, MEDS_m, "A_hat[%i]", i);
       LOG_MAT_FMT(B_hat, MEDS_n, MEDS_n, "B_hat[%i]", i);
 
+//        printf("h[%i] > 0\n", i);
+//        pmod_mat_fprint(stdout, A_hat, MEDS_m, MEDS_m);
+//        printf("\n");
 
 
       pi(G_hat_i, A_hat, B_hat, G[h[i]]);
@@ -660,7 +687,7 @@ int crypto_sign_open(
         pmod_mat_t A_hat_inv[MEDS_m * MEDS_m];
         pmod_mat_t B_hat_inv[MEDS_n * MEDS_n];
 
-        if (solve_symb(A_hat_i, B_hat_inv, G0_prime, -1) < 0)
+        if (solve(A_hat_i, B_hat_inv, G0_prime, false) < 0)
         {
           LOG("no sol");
           continue;
