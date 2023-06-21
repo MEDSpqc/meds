@@ -319,15 +319,16 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
 
   // Systemize core sub-system.
-  // We can tolarate partial solving on verifier side as long as we can pivot down to row MEDS_n-2.
-  // TODO: Check on what to do if it breaks down even further!
+  // We can tolarate partial solving on verifier side as long as we can pivot all except the last row.
   int piv;
   if ((piv = pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, partial)) != 0)
   {
     if (partial)
     {
       if (piv != MEDS_n-1)
-        return(-1);  // TODO: Handle gracefully!
+      {
+        return -1;  // This should not happen for a valid signaure.
+      }
     }
     else
       return -1;
