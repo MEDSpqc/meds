@@ -34,17 +34,6 @@ int main(int argc, char *argv[])
 
   unsigned char entropy_input[48] = {0};
 
- for (int tt = 0; tt < 256; tt++)
- for (int ttt = 0; ttt < 256; ttt++)
-//   int tt = 6;
-//   int ttt = 88;
- {
-   printf("%i\n", tt);
-   printf("%i\n", ttt);
-
-  entropy_input[0] = tt;
-  entropy_input[1] = ttt;
-
   randombytes_init(entropy_input, NULL, 256);
 
   char msg[4] = "Test";
@@ -89,7 +78,6 @@ int main(int argc, char *argv[])
     else
       printf("!!! FAILED !!!\n");
   }
- }
 
   double freq = osfreq();
 

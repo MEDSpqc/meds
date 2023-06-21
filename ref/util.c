@@ -190,6 +190,8 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
 
 int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
 {
+  _Static_assert (MEDS_n == MEDS_m+1, "solve_symb requires MEDS_n == MEDS_m+1");
+
   pmod_mat_t Pj0[MEDS_m * MEDS_n] = {0};
   pmod_mat_t Pj1[MEDS_m * MEDS_n] = {0};
   pmod_mat_t *Pj[2] = {Pj0, Pj1};
@@ -250,11 +252,6 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool parti
       for (int i = r+1; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
         sol[i] = 0;
 
-//      for (int i = 0; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
-//        printf("%i ", sol[i]);
-//      printf("\n");
-
-
       LOG_VEC(sol, MEDS_m * MEDS_m + MEDS_n * MEDS_n);
 
 
@@ -303,16 +300,9 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool parti
 
 int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
 {
-//  m = P0prime[0].nrows()
-//  n = P0prime[0].ncols()
-//
-//  GFq = P0prime[0][0,0].base_ring()
-//
-//  ###################
+  _Static_assert (MEDS_n == MEDS_m+1, "solve_opt requires MEDS_n == MEDS_m+1");
 
-//  N = -P0prime[1].transpose()
-//  N = N.augment(P0prime[0].transpose())
-
+  // set up core sub-system
   pmod_mat_t N[MEDS_n * (2 * MEDS_m)] = {0};
 
   for (int i = 0; i < MEDS_m; i++)
@@ -328,196 +318,118 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   LOG_MAT(N, MEDS_n, 2 * MEDS_m);
 
 
-//  N0 = N.submatrix(0,0,N.nrows()-1, N.ncols())
-//  N1 = N.submatrix(N.nrows()-1,0,1, N.ncols())
-//
-//  N = N0.rref()
-
-//  int do_exit = -1;
-
- // if (pmod_mat_syst_ct(N, MEDS_n-1, 2 * MEDS_m) != 0)
-  if (pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, partial) < 0)
+  // Systemize core sub-system.
+  // We can tolarate partial solving on verifier side as long as we can pivot down to row MEDS_n-2.
+  // TODO: Check on what to do if it breaks down even further!
+  int piv;
+  if ((piv = pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, partial)) != 0)
   {
-//    if (partial)
-//    {
-//      LOG_MAT(N, MEDS_n, 2 * MEDS_m);
-//
-////      pmod_mat_fprint(stdout, N, MEDS_n, 2*MEDS_m);
-////      printf("\nugh\n\n");
-////
-////      do_exit = 1;
-////      exit(-1);
-////      int ret = solve_symb(A, B_inv, G0prime, partial);
-////
-////      pmod_mat_fprint(stdout, A, MEDS_m, MEDS_m);
-////
-////      return ret;
-////
-////      pmod_mat_fprint(stderr, N, MEDS_n-1, 2 * MEDS_m);
-////      return -1;
-//    }
-//    else
+    if (partial)
+    {
+      if (piv != MEDS_n-1)
+        return(-1);  // TODO: Handle gracefully!
+    }
+    else
       return -1;
   }
 
   LOG_MAT(N, MEDS_n, 2 * MEDS_m);
 
 
-//  for i in range(m-1):
-//    N = N.stack(N1)
-//
-//
-//  N1 = N.submatrix(m,0,m-1, N.ncols())
-
-
-  pmod_mat_t N1[(MEDS_m-1) * (2 * MEDS_m)] = {0};
+  // Extract 2nd sub-system.
+  pmod_mat_t N1[(MEDS_m-1) * MEDS_m] = {0};
 
   for (int i = 0; i < MEDS_m; i++)
-    for (int j = 0; j < MEDS_m-1; j++)
     {
-      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, MEDS_m + i,
+      pmod_mat_set_entry(N1, MEDS_n, MEDS_m, 0, i,
           pmod_mat_entry(N, MEDS_n, 2 * MEDS_m, MEDS_n-1, MEDS_m + i));
-//          (MEDS_p - pmod_mat_entry((G0prime + (MEDS_m*MEDS_n)), MEDS_m, MEDS_n, i, MEDS_n-1)) % MEDS_p);
-//
-//      pmod_mat_set_entry(N1, MEDS_n, 2 * MEDS_m, j, MEDS_m+i,
-//          pmod_mat_entry(G0prime, MEDS_m, MEDS_n, i, MEDS_n-1));
     }
 
   LOG_MAT(N1, MEDS_m-1, 2 * MEDS_m);
 
-//  for block in range(1, m):
-//    for row in range(block):
-//      for i in range(m):
-//        for j in range(m):
-//          N1[row, j+m] = N1[row, j+m] - N1[row, i] * N[i, j+m]
-//
-//      for i in range(m):
-//        N1[row, i] = N1[row, i+m]
-//        N1[row, i+m] = 0
 
-  for (int block = 1; block < MEDS_m; block++)
-    for (int row = 0; row < block; row++)
-    {
-      for (int i = 0; i < MEDS_m; i++)
-        for (int j = 0; j < MEDS_m; j++)
-        {
-          uint64_t tmp0 = pmod_mat_entry(N1, MEDS_m-1, 2 * MEDS_m, row, i);
-          uint64_t tmp1 = pmod_mat_entry(N, MEDS_n-1, 2 * MEDS_m, i, j + MEDS_m);
-
-          uint64_t prod = (tmp0 * tmp1) % MEDS_p;
-
-          uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, 2 * MEDS_m, row, j + MEDS_m);
-
-          int64_t diff = (MEDS_p + tmp2 - prod) % MEDS_p;
-
-          pmod_mat_set_entry(N1, MEDS_m-1, 2 * MEDS_m, row, j + MEDS_m, diff);
-        }
-
-      for (int i = 0; i < MEDS_m; i++)
-      {
-        pmod_mat_set_entry(N1, MEDS_m-1, 2 * MEDS_m, row, i,
-            pmod_mat_entry(N1, MEDS_m-1, 2 * MEDS_m, row, i + MEDS_m));
-
-        pmod_mat_set_entry(N1, MEDS_m-1, 2 * MEDS_m, row, i + MEDS_m, 0);
-      }
-    }
-
-
-  LOG_MAT(N1, MEDS_m-1, 2 * MEDS_m);
-
-
-//  exit(-1);
-
-
-//  N1 = N1.submatrix(0,0,m-1, m)
-//
-//  N1 = N1.rref()
-//
-//  N = N.submatrix(0,m, m, m)
-
-  for (int i = 1; i < MEDS_m-1; i++)
-    for (int j = 0; j < MEDS_m; j++)
-        pmod_mat_set_entry(N1, MEDS_m-1, MEDS_m, i, j,
-            pmod_mat_entry(N1, MEDS_m-1, 2 * MEDS_m, i, j));
-
-  // Consider N1 MEDS_m-1 x MEDS_m, now...
-
-  for (int i = 0; i < MEDS_n-1; i++)
+  // Remove front diagonale of core sub-system.
+  for (int i = 0; i < MEDS_n; i++)
     for (int j = 0; j < MEDS_m; j++)
         pmod_mat_set_entry(N, MEDS_n-1, MEDS_m, i, j,
             pmod_mat_entry(N, MEDS_n-1, 2 * MEDS_m, i, MEDS_m + j));
 
   // Consider N MEDS_n-1 x MEDS_m, now...
+  LOG_MAT(N, MEDS_n-1, MEDS_m);
 
-//  sol = [0] * (m*m + n*n)
-//
-//  for i in range(m-1):
-//    sol[2*m*n - (m-1) + i] = N1[i, m-1]
-//
-//
-//  for i in range(m):
-//    sol[2*m*n - m - (m-1) + i] = N[i, m-1]
+
+  // Fully reduce 2nd sub-system.
+  for (int row = 1; row < MEDS_m-1; row++)
+    for (int i = 0; i < MEDS_m; i++)
+      for (int j = 0; j < MEDS_m; j++)
+      {
+        uint64_t tmp0 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, row-1, i);
+        uint64_t tmp1 = pmod_mat_entry(N, MEDS_n-1, MEDS_m, i, j);
+
+        uint64_t prod = (tmp0 * tmp1) % MEDS_p;
+
+        uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, row, j);
+
+        int64_t diff = (MEDS_p + tmp2 - prod) % MEDS_p;
+
+        pmod_mat_set_entry(N1, MEDS_m-1, MEDS_m, row, j, diff);
+      }
+
+
+  LOG_MAT(N1, MEDS_m-1, MEDS_m);
 
 
   GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n] = {0};
 
-  int N1_r = MEDS_m-1;
 
-  //if ((N1_r = pmod_mat_syst_ct_partial(N1, MEDS_m-1, MEDS_m, partial)) != 0)
-  if ((N1_r = pmod_mat_syst_ct(N1, MEDS_m-1, MEDS_m)) != 0)
+  int N1_r;
+
+  // Sytemize 2nd sub-system.
+  if ((N1_r = pmod_mat_syst_ct_partial(N1, MEDS_m-1, MEDS_m, partial)) != 0)
   {
-//    if (partial)
-//    {
-//      LOG_MAT(N1, MEDS_m-1, MEDS_m);
-//
-//      for (int i = 0; i < N1_r; i++)
-//        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, N1_r);
-//
-//      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + N1_r] = MEDS_p - 1;
-//
-//      for (int i = N1_r+1; i < MEDS_m-1; i++)
-//        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = 0;
-//
-////      for (int i = 0; i < MEDS_m*MEDS_m + MEDS_n*MEDS_n; i++)
-////        printf("%i ", sol[i]);
-////      printf("\n\n%i %i\n\n", N1_r, MEDS_m-1);
-////
-////      pmod_mat_fprint(stdout, N1, MEDS_m-1, MEDS_m);
-////      printf("\n");
-//
-//      return -1;
-//      exit(-1);
-//    }
-//    else
+    // The verifier can continune if the 2nd sub-system only partially systemizes.
+    if (partial)
+    {
+      LOG_MAT(N1, MEDS_m-1, MEDS_m);
+
+      // Fill in solutions from the 2nd sub-system.
+      for (int i = 0; i < N1_r; i++)
+        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, N1_r);
+
+      // Fix solution at pivot location to -1.
+      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + N1_r] = MEDS_p - 1;
+
+      // Remaining spots resolve to zero.
+      for (int i = N1_r+1; i < MEDS_m-1; i++)
+        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = 0;
+    }
+    else
       return -1;
   }
-//  else
-//  {
+  else
+  {
     LOG_MAT(N1, MEDS_m-1, MEDS_m);
 
+    // Fill in solutions from the 2nd sub-system.
     for (int i = 0; i < MEDS_m-1; i++)
       sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, MEDS_m-1);
 
+    // Fix to -1.
     sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = MEDS_p - 1;
 
     N1_r = MEDS_m-1;
-//  }
+  }
 
   LOG_MAT(N, MEDS_n-1, MEDS_m);
 
+  // Fill in solutions from core sub-system.
   for (int i = 0; i < MEDS_m; i++)
     sol[2*MEDS_m*MEDS_n - MEDS_m - (MEDS_m-1) + i] = pmod_mat_entry(N, MEDS_n-1, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
-//  if (do_exit == 1) exit(-1);
 
-//  sol[-1] = GFq(-1)
-
-//  for c in reversed(range(m-1)):
-//    for r in range(m):
-//      sol[2*m*n - m - (m-1) + r] -= N[r, c] * sol[2*m*n - (m-1) + c]
-
+  // Back-substitue second last block.
   for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_m; r++)
     {
@@ -535,16 +447,8 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
-//  P = -P0prime[1].transpose()
-//
-//  for i in range(n):
-//    sol[m*n + i] = P[i, m-1]
-//
-//  for c in reversed(range(m-1)):
-//    for r in range(n):
-//      sol[m*n + r] -= P[r, c] * N1[c, m-1]
 
-
+  // Prepare substitution-source of first block in bottom part.
   pmod_mat_t P01nt[MEDS_n * MEDS_m] = {0};
 
   for (int i = 0; i < MEDS_n; i++)
@@ -554,19 +458,18 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
   LOG_MAT(P01nt, MEDS_n, MEDS_m);
 
+  // Transfer last column to solution vector.
   for (int i = 0; i < MEDS_n; i++)
     sol[MEDS_m*MEDS_n + i] = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
+  // Perfrom back-substution for first block in bottom part.
   for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_n; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, r, c);
       uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, N1_r);
-
-//  if (N1_r != MEDS_m -1)
-//      printf("%i\n", tmp2);
 
       uint64_t prod = (tmp1 * tmp2) % MEDS_p;
 
@@ -577,26 +480,10 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
       sol[MEDS_m*MEDS_n + r] = val;
     }
 
-
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
 
-
-//  P = -P0prime[0].transpose()
-//
-//  for i in range(n):
-//    sol[(m-1)*n + i] = P[i, m-1]
-//
-//  for c in reversed(range(m-1)):
-//    for r in range(n):
-//      sol[(m-1)*n +r] -= P[r, c] * N1[c, m-1]
-//
-//
-//  for b in reversed(range(m-2)):
-//    for c in reversed(range(m)):
-//      for r in range(m):
-//        sol[(m+1)*n + b*m + r] -= N[r, c] * sol[(m+1)*n + b*m + m + c]
-
+  // Prepare substitution-source for top part.
   pmod_mat_t P00nt[MEDS_n * MEDS_m] = {0};
 
   for (int i = 0; i < MEDS_n; i++)
@@ -606,11 +493,14 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
   LOG_MAT(P00nt, MEDS_n, MEDS_m);
 
+
+  // For the last block in the top part, transfer last column to solution vector.
   for (int i = 0; i < MEDS_n; i++)
     sol[(MEDS_m-1)*MEDS_n + i] = pmod_mat_entry(P00nt, MEDS_n, MEDS_m, i, N1_r);
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
+  // Perfrom back-substution for last block in top part.
   for (int c = N1_r - 1; c >= 0; c--)
     for (int r = 0; r < MEDS_n; r++)
     {
@@ -629,6 +519,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
 
+  // Perfrom back-substution for all remaining blocks in bottom part.
   for (int b = MEDS_m-3; b >= 0; b--)
     for (int c = MEDS_m - 1; c >= 0; c--)
       for (int r = 0; r < MEDS_m; r++)
@@ -649,13 +540,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
 
-//  P = -P0prime[0].transpose()
-//
-//  for b in reversed(range(m-1)):
-//    for c in reversed(range(m)):
-//      for r in range(n):
-//        sol[b*n + r] -=  P[r, c] * sol[2*m*n - (m-1) - (m-1-b)*m + c]
-
+  // Perfrom back-substution for all remaining blocks in top part.
   for (int b = MEDS_m-2; b >= 0; b--)
     for (int c = MEDS_m - 1; c >= 0; c--)
       for (int r = 0; r < MEDS_n; r++)
@@ -675,20 +560,6 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
   LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
-//  ###################
-
-  LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
-
-//  logging.debug("sol:\n%s", sol)
-//  A     = matrix(GFq, m, sol[n*n:])
-//  B_inv = matrix(GFq, n, sol[:n*n])
-//
-//  logging.debug(f"A:\n%s", A)
-//  logging.debug(f"B_inv:\n%s", B_inv)
-//
-//  return A, B_inv
-//
-//  LOG_VEC(sol, MEDS_m * MEDS_m + MEDS_n * MEDS_n);
 
   for (int i = 0; i < MEDS_m*MEDS_m; i++)
     A[i] = sol[i + MEDS_n*MEDS_n];
@@ -700,11 +571,12 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   LOG_MAT(B_inv, MEDS_n, MEDS_n);
 
   return 0;
-
 }
 
 /*int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 {
+  _Static_assert (MEDS_n == MEDS_m, "solve_opt requires MEDS_n == MEDS_m");
+
   pmod_mat_t P0prime0[MEDS_m*MEDS_n];
   pmod_mat_t P0prime1[MEDS_m*MEDS_n];
 
@@ -896,24 +768,12 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 }
 */
 
-void G_mat_init(pmod_mat_t *G, pmod_mat_t *Gsub[MEDS_k])
-{
-  for (int i = 0; i < MEDS_k; i++)
-    Gsub[i] = G + i*MEDS_m*MEDS_n;
-}
-
 void pi(pmod_mat_t *Gout, pmod_mat_t *A, pmod_mat_t *B, pmod_mat_t *G)
 {
-  pmod_mat_t *G0sub[MEDS_k];
-  G_mat_init(G, G0sub);
-
-  pmod_mat_t *Gsub[MEDS_k];
-  G_mat_init(Gout, Gsub);
-
   for (int i = 0; i < MEDS_k; i++)
   {
-    pmod_mat_mul(Gsub[i], MEDS_m, MEDS_n, A, MEDS_m, MEDS_m, G0sub[i], MEDS_m, MEDS_n);
-    pmod_mat_mul(Gsub[i], MEDS_m, MEDS_n, Gsub[i], MEDS_m, MEDS_n, B, MEDS_n, MEDS_n);
+    pmod_mat_mul(&Gout[i*MEDS_m*MEDS_n], MEDS_m, MEDS_n, A, MEDS_m, MEDS_m, &G[i*MEDS_m*MEDS_n], MEDS_m, MEDS_n);
+    pmod_mat_mul(&Gout[i*MEDS_m*MEDS_n], MEDS_m, MEDS_n, &Gout[i*MEDS_m*MEDS_n], MEDS_m, MEDS_n, B, MEDS_n, MEDS_n);
   }
 }
 
