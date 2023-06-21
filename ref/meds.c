@@ -305,17 +305,18 @@ int crypto_sign(
   LOG_VEC(delta, MEDS_sec_seed_bytes);
 
 
-  uint8_t stree[MEDS_st_seed_bytes * SEED_TREE_size] = {0};
-  uint8_t alpha[MEDS_st_salt_bytes];
-
-  uint8_t *rho = &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(0,0)];
+  uint8_t rho[MEDS_st_salt_bytes] = {0};
+  uint8_t alpha[MEDS_st_salt_bytes] = {0};
 
   XOF((uint8_t*[]){rho, alpha},
       (size_t[]){MEDS_st_seed_bytes, MEDS_st_salt_bytes},
       delta, MEDS_sec_seed_bytes,
       2);
 
-  t_hash(stree, alpha, 0, 0);
+
+  uint8_t stree[MEDS_st_seed_bytes * SEED_TREE_size] = {0};
+
+  t_hash(stree, rho, alpha, 0, 0);
 
   uint8_t *sigma = &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(MEDS_seed_tree_height, 0)];
 
@@ -363,6 +364,7 @@ int crypto_sign(
 
       memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
+      LOG_HEX(seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t));
 
       XOF((uint8_t*[]){sigma_M_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
            (size_t[]){MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
@@ -455,7 +457,7 @@ int crypto_sign(
 
   uint8_t *path = sm + MEDS_w * CEILING(2*MEDS_k * GFq_bits, 8);
 
-  t_hash(stree, alpha, 0, 0);
+  t_hash(stree, rho, alpha, 0, 0);
 
   stree_to_path(stree, h, path, alpha);
 
@@ -579,6 +581,8 @@ int crypto_sign_open(
 
   path_to_stree(stree, h, path, alpha);
 
+  LOG_HEX(stree, MEDS_st_seed_bytes * SEED_TREE_size);
+
   uint8_t *sigma = &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(MEDS_seed_tree_height, 0)];
 
   pmod_mat_t G_hat_i[MEDS_k*MEDS_m*MEDS_n];
@@ -670,6 +674,9 @@ int crypto_sign_open(
           addr_pos[j] = (i >> (j*8)) & 0xff;
 
         memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
+
+
+        LOG_HEX(seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t));
 
 
         XOF((uint8_t*[]){sigma_M_hat_i, &sigma[i*MEDS_st_seed_bytes]},

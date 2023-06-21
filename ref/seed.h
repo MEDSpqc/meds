@@ -7,7 +7,7 @@
 
 void print_tree(uint8_t *stree);
 
-void t_hash(uint8_t *stree, uint8_t *salt, int h, int i);
+void t_hash(uint8_t *stree, uint8_t *root, uint8_t *salt, int h, int i);
 
 #define STREE_TO_PATH 0
 #define PATH_TO_STREE 1

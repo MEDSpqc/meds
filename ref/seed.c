@@ -10,6 +10,44 @@
 #include "seed.h"
 #include "log.h"
 
+
+#ifdef MEDS_no_seed_tree
+
+void t_hash(uint8_t *stree, uint8_t *root, uint8_t *salt, int h, int i)
+{
+  keccak_state shake;
+
+  uint8_t buf[MEDS_st_seed_bytes + MEDS_st_salt_bytes] = {0};
+
+  memcpy(buf, root, MEDS_st_seed_bytes);
+  memcpy(buf + MEDS_st_seed_bytes, salt, MEDS_st_salt_bytes);
+
+
+  shake256_init(&shake);
+  shake256_absorb(&shake, buf, MEDS_st_seed_bytes + MEDS_st_salt_bytes);
+  shake256_finalize(&shake);
+
+  shake256_squeeze(stree, MEDS_t * MEDS_st_seed_bytes, &shake);
+}
+
+void stree_to_path_to_stree(uint8_t *stree, uint8_t *h_digest, uint8_t *path, uint8_t *salt, int mode)
+{
+  for (int i = 0; i < MEDS_t; i++)
+    if (h_digest[i] == 0)
+    {
+      if (mode == STREE_TO_PATH)
+        memcpy(path, &stree[i * MEDS_st_seed_bytes], MEDS_st_seed_bytes);
+      else
+        memcpy(&stree[i * MEDS_st_seed_bytes], path, MEDS_st_seed_bytes);
+
+      LOG_HEX_FMT(path, MEDS_st_seed_bytes, "path[%i]", i);
+
+      path += MEDS_st_seed_bytes;
+    }
+}
+
+#else // ifdef MEDS_no_seed_tree
+
 void print_tree(uint8_t *stree)
 {
   int h = 0;
@@ -42,8 +80,10 @@ void print_tree(uint8_t *stree)
   }
 }
 
-void t_hash(uint8_t *stree, uint8_t *salt, int h, int i)
+void t_hash(uint8_t *stree, uint8_t *root, uint8_t *salt, int h, int i)
 {
+  memcpy(&stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(h, i)], root, MEDS_st_seed_bytes);
+
   keccak_state shake;
 
   int start = i;
@@ -140,7 +180,7 @@ void stree_to_path_to_stree(uint8_t *stree, uint8_t *h_digest, uint8_t *path, ui
         memcpy(&stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(h, i)], path, MEDS_st_seed_bytes);
         path += MEDS_st_seed_bytes;
 
-        t_hash(stree, salt, h, i);
+        t_hash(stree, &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(h, i)], salt, h, i);
       }
     }
 
@@ -158,4 +198,5 @@ void stree_to_path_to_stree(uint8_t *stree, uint8_t *h_digest, uint8_t *path, ui
       return;
   }
 }
+#endif // else ifdef MEDS_no_seed_tree
 
