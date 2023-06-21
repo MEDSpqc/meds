@@ -298,8 +298,6 @@ int crypto_sign(
   LOG_MAT(G_0, MEDS_k, MEDS_m*MEDS_n);
 
 
-redo:
-
   uint8_t delta[MEDS_sec_seed_bytes];
 
   randombytes(delta, MEDS_sec_seed_bytes);
@@ -344,22 +342,36 @@ redo:
   keccak_state h_shake;
   shake256_init(&h_shake);
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   for (int i = 0; i < MEDS_t; i++)
   {
     pmod_mat_t G_tilde_ti[MEDS_k * MEDS_m * MEDS_n];
 
     while (1 == 1)
     {
-      uint8_t sigma_M_tilde_i[MEDS_st_seed_bytes];
+      uint8_t sigma_M_tilde_i[MEDS_pub_seed_bytes];
+
+
+      for (int j = 0; j < 4; j++)
+        addr_pos[j] = (i >> (j*8)) & 0xff;
+
+      memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
+
 
       XOF((uint8_t*[]){sigma_M_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
-           (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-           &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+           (size_t[]){MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+           seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t),
            2);
 
-      LOG_HEX_FMT(sigma_M_tilde_i, MEDS_st_seed_bytes, "sigma_M_tilde[%i]", i);
+      LOG_HEX_FMT(sigma_M_tilde_i, MEDS_pub_seed_bytes, "sigma_M_tilde[%i]", i);
 
-      rnd_inv_matrix(M_tilde[i], 2, MEDS_k, sigma_M_tilde_i, MEDS_st_seed_bytes);
+      rnd_inv_matrix(M_tilde[i], 2, MEDS_k, sigma_M_tilde_i, MEDS_pub_seed_bytes);
 
       LOG_MAT_FMT(M_tilde[i], 2, MEDS_k, "M_tilde[%i]", i);
 
@@ -461,28 +473,18 @@ redo:
         for (int j = 0; j <2*MEDS_k; j++)
           bs_write(&bs, kappa[j], GFq_bits);
 
-
-//        pmod_mat_t tmp[MEDS_m*MEDS_m];
+//        // Check if verifier has systematic system:
+//        int64_t sum = 0;
 //
-//        pmod_mat_mul(tmp, MEDS_m, MEDS_m, A_tilde[i], MEDS_m, MEDS_m, A_inv[h[i]], MEDS_m, MEDS_m);
+//        // Compute bottom right value of A_tilde[i] * A_inv[h[i]].
+//        for (int j = 0; j < MEDS_m; j++)
+//          sum = (sum + A_tilde[i][(MEDS_m-1)*MEDS_m + j] * A_inv[h[i]][j * MEDS_m + MEDS_m - 1]) % MEDS_p;
 //
-//        printf("h[%i] > 0\n", i);
-//        pmod_mat_fprint(stdout, tmp, MEDS_m, MEDS_m);
-//        printf("\n");
-
-        uint64_t tmp = 0;
-
-        // Compute bottom right value of A_tilde[i] * A_inv[h[i]].
-        for (int j = 0; j < MEDS_m; j++)
-          tmp = (A_tilde[i][(MEDS_m-1)*MEDS_m + j] * A_inv[h[i]][j * MEDS_m + MEDS_m - 1]) % MEDS_p;
-
-        if (tmp == 0) //[MEDS_m*MEDS_m - 1] == 0)
-        {
-          LOG("REDO A[-1,-1] == 0");
-          printf("REDO A[-1,-1] == 0\n");
-//          exit(-1);
-          goto redo;
-        }
+//        if (sum == 0)
+//        {
+//          LOG("REDO A[-1,-1] == 0");
+//          goto redo;
+//        }
       }
 
       bs_finalize(&bs);
@@ -586,6 +588,13 @@ int crypto_sign_open(
   keccak_state shake;
   shake256_init(&shake);
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   for (int i = 0; i < MEDS_t; i++)
   {
     if (h[i] > 0)
@@ -613,7 +622,7 @@ int crypto_sign_open(
 
       if (solve(A_hat, B_hat_inv, G0_prime, true) < 0)
       {
-        LOG("no sol");
+        LOG("crypto_sign_open - no sol");
         printf("no sol\n");
         return -1;
       }
@@ -632,10 +641,6 @@ int crypto_sign_open(
 
       LOG_MAT_FMT(A_hat, MEDS_m, MEDS_m, "A_hat[%i]", i);
       LOG_MAT_FMT(B_hat, MEDS_n, MEDS_n, "B_hat[%i]", i);
-
-//        printf("h[%i] > 0\n", i);
-//        pmod_mat_fprint(stdout, A_hat, MEDS_m, MEDS_m);
-//        printf("\n");
 
 
       pi(G_hat_i, A_hat, B_hat, G[h[i]]);
@@ -658,18 +663,25 @@ int crypto_sign_open(
       {
         LOG_VEC_FMT(&sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes, "seeds[%i]", i);
 
-        uint8_t sigma_M_hat_i[MEDS_st_seed_bytes];
+        uint8_t sigma_M_hat_i[MEDS_pub_seed_bytes];
+
+
+        for (int j = 0; j < 4; j++)
+          addr_pos[j] = (i >> (j*8)) & 0xff;
+
+        memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
+
 
         XOF((uint8_t*[]){sigma_M_hat_i, &sigma[i*MEDS_st_seed_bytes]},
-            (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-            &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+            (size_t[]){MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t),
             2);
 
         pmod_mat_t M_hat_i[2*MEDS_k];
 
-        LOG_HEX_FMT(sigma_M_hat_i, MEDS_st_seed_bytes, "sigma_M_hat[%i]", i);
+        LOG_HEX_FMT(sigma_M_hat_i, MEDS_pub_seed_bytes, "sigma_M_hat[%i]", i);
 
-        rnd_inv_matrix(M_hat_i, 2, MEDS_k, sigma_M_hat_i, MEDS_st_seed_bytes);
+        rnd_inv_matrix(M_hat_i, 2, MEDS_k, sigma_M_hat_i, MEDS_pub_seed_bytes);
 
         LOG_MAT_FMT(M_hat_i, 2, MEDS_k, "M_hat[%i]", i);
 
