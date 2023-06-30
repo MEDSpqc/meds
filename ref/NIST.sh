@@ -11,11 +11,10 @@ for p in `./params.py -l`; do
   rm MEDS/$v/$p/randombytes.*
   rm MEDS/$v/$p/KAT_test.c
 
-  cp -r NIST MEDS/$v/$p/
-
-  ln -s NIST/PQCgenKAT_sign.c MEDS/$v/$p/
-  ln -s NIST/rng.c MEDS/$v/$p/randombytes.c
-  ln -s NIST/rng.h MEDS/$v/$p/randombytes.h
+  cp NIST/PQCgenKAT_sign.c MEDS/$v/$p/PQCgenKAT_sign.c
+  cp NIST/rng.c MEDS/$v/$p/randombytes.c
+  cp NIST/rng.h MEDS/$v/$p/randombytes.h
+  cp NIST/rng.h MEDS/$v/$p/rng.h
 
   ./params.py -p $p > MEDS/$v/$p/params.h
 
