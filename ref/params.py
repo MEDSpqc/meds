@@ -5,6 +5,7 @@ from math import log
 from math import log2
 from math import ceil
 from math import comb
+import re
 
 @dataclass
 class Param:
@@ -20,6 +21,7 @@ class Param:
   t: int
   w: int
   k: int
+  seed_tree: bool = True
 
   _name: str=None
 
@@ -35,7 +37,7 @@ class Param:
   @property
   def name(self):
     if self._name:
-      return self._name
+      return re.sub(r'\W+', '', self._name)
     else:
       return f"MEDS{self.pk_size}"
 
@@ -83,7 +85,11 @@ class Param:
     t = self.t
     w = self.w
 
-    return (2**ceil(log2(w)) + w * (ceil(log2(t)) - ceil(log2(w)) - 1))
+    if self.seed_tree:
+      return (2**ceil(log2(w)) + w * (ceil(log2(t)) - ceil(log2(w)) - 1))
+    else:
+      return t - w
+
 
   @property
   def sig_size(self):
@@ -136,7 +142,7 @@ class Param:
     print()
 
 params = [
-# Level I
+# Test Level 1
   Param(digest_bytes = 256 >> 3,
         pub_seed_bytes = 256 >> 3,
         sec_seed_bytes = 256 >> 3,
@@ -146,9 +152,10 @@ params = [
         m = 14,
         n = 15,
         k = 14,
-        s = 4,
-        t = 1152,
-        w = 14),
+        s = 2,
+        t = 144,
+        w = 48,
+        seed_tree = False),
 
   Param(digest_bytes = 256 >> 3,
         pub_seed_bytes = 256 >> 3,
@@ -159,9 +166,37 @@ params = [
         m = 14,
         n = 15,
         k = 14,
-        s = 5,
-        t = 192,
-        w = 20),
+        s = 4,
+        t = 128,
+        w = 26),
+#        _name = "MEDS-2084"),
+
+# # Level I
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 128 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 4093,
+#         m = 14,
+#         n = 15,
+#         k = 14,
+#         s = 4,
+#         t = 1152,
+#         w = 14),
+# 
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 128 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 4093,
+#         m = 14,
+#         n = 15,
+#         k = 14,
+#         s = 5,
+#         t = 192,
+#         w = 20),
 
 # Level III
 
@@ -174,9 +209,10 @@ params = [
         m = 22,
         n = 23,
         k = 22,
-        s = 4,
-        t = 608,
-        w = 26),
+        s = 2,
+        t = 224,
+        w = 66,
+        seed_tree = False),
 
   Param(digest_bytes = 256 >> 3,
         pub_seed_bytes = 256 >> 3,
@@ -187,9 +223,36 @@ params = [
         m = 22,
         n = 23,
         k = 22,
-        s = 5,
-        t = 160,
-        w = 36),
+        s = 4,
+        t = 192,
+        w = 38,
+        seed_tree = False),
+
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 192 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 4093,
+#         m = 22,
+#         n = 23,
+#         k = 22,
+#         s = 4,
+#         t = 608,
+#         w = 26),
+# 
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 192 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 4093,
+#         m = 22,
+#         n = 23,
+#         k = 22,
+#         s = 5,
+#         t = 160,
+#         w = 36),
 
 # Level V
 
@@ -202,9 +265,10 @@ params = [
         m = 30,
         n = 31,
         k = 30,
-        s = 5,
-        t = 192,
-        w = 52),
+        s = 2,
+        t = 288,
+        w = 94,
+        seed_tree = False),
 
   Param(digest_bytes = 256 >> 3,
         pub_seed_bytes = 256 >> 3,
@@ -215,9 +279,35 @@ params = [
         m = 30,
         n = 31,
         k = 30,
-        s = 6,
-        t = 112,
-        w = 66),
+        s = 4,
+        t = 256,
+        w = 50),
+
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 256 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 2039,
+#         m = 30,
+#         n = 31,
+#         k = 30,
+#         s = 5,
+#         t = 192,
+#         w = 52),
+# 
+#   Param(digest_bytes = 256 >> 3,
+#         pub_seed_bytes = 256 >> 3,
+#         sec_seed_bytes = 256 >> 3,
+#         st_seed_bytes = 256 >> 3,
+#         st_salt_bytes = 256 >> 3,
+#         q = 2039,
+#         m = 30,
+#         n = 31,
+#         k = 30,
+#         s = 6,
+#         t = 112,
+#         w = 66),
 
 # toy
 
@@ -410,10 +500,15 @@ def gen_param(parset):
 
     print()
 
-    print(f"{ind}#define MEDS_seed_tree_height {ceil(log(param.t, 2))}")
-    print(f"{ind}#define SEED_TREE_size {((1 << (ceil(log(param.t, 2)) + 1)) - 1)}")
-
-    print(f"{ind}#define MEDS_max_path_len {param.seed_max_tree_len}")
+    if param.seed_tree:
+      print(f"{ind}#define MEDS_seed_tree_height {ceil(log(param.t, 2))}")
+      print(f"{ind}#define SEED_TREE_size {((1 << (ceil(log(param.t, 2)) + 1)) - 1)}")
+      print(f"{ind}#define MEDS_max_path_len {param.seed_max_tree_len}")
+    else:
+      print(f"{ind}#define MEDS_no_seed_tree")
+      print(f"{ind}#define MEDS_seed_tree_height 0")
+      print(f"{ind}#define SEED_TREE_size {param.t}")
+      print(f"{ind}#define MEDS_max_path_len {param.seed_max_tree_len}")
 
     print()
 

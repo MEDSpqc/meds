@@ -40,7 +40,7 @@ and the KAT test using
 The default parameter set is the `toy` parameter set. Another parameter set can be selected using `PARAM`, e.g.:
 
 ```console
-   make RUN P=ARAM=MEDS9923
+   make RUN PARAM=MEDS9923
 ```
 
 A list of available parameter sets can be obtained by:
