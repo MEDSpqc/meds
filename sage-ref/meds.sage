@@ -204,7 +204,13 @@ class MEDSbase:
 
     for i in range(t):
       while True:
-        sigma_M_tilde, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes])
+
+        seed_buf = alpha + sigma[i] + i.to_bytes(4, "little")
+
+        logging.debug(f"seed_buf:\n0x%s", binascii.hexlify(seed_buf).decode())
+
+        sigma_M_tilde, sigma[i] = XOF(seed_buf, [param.pub_seed_bytes, param.st_seed_bytes])
+
 
         logging.debug(f"sigma_M_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_M_tilde).decode())
 
@@ -337,16 +343,16 @@ class MEDSbase:
     ms = ms[ceil(2*k * GF_BITS / 8)*w:]
     path = ms[:param.seed_tree_cost]; ms = ms[param.seed_tree_cost:]
     d = ms[:param.digest_bytes]; ms = ms[param.digest_bytes:]
-    self.st_salt = ms[:param.st_salt_bytes]; msg = ms[param.st_salt_bytes:]
+    alpha = ms[:param.st_salt_bytes]; msg = ms[param.st_salt_bytes:]
 
     logging.debug(f"kappa:\n0x%s", binascii.hexlify(kappa).decode())
     logging.debug(f"path:\n0x%s", binascii.hexlify(path).decode())
     logging.debug(f"digest:\n0x%s", binascii.hexlify(d).decode())
-    logging.debug(f"alpha:\n0x%s", binascii.hexlify(self.st_salt).decode())
+    logging.debug(f"alpha:\n0x%s", binascii.hexlify(alpha).decode())
 
     h = PaseHash(d, self.params)
 
-    sigma = PathToSeedTree(h, path, self.st_salt, self.params)
+    sigma = PathToSeedTree(h, path, alpha, self.params)
 
     G_hat = [None] * t
 
@@ -402,7 +408,12 @@ class MEDSbase:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
-          sigma_M_hat_i, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes])
+
+          seed_buf = alpha + sigma[i] + i.to_bytes(4, "little")
+
+          logging.debug(f"seed_buf:\n0x%s", binascii.hexlify(seed_buf).decode())
+
+          sigma_M_hat_i, sigma[i] = XOF(seed_buf, [param.pub_seed_bytes, param.st_seed_bytes])
 
           logging.debug(f"sigma_M_hat[{i}]:\n0x%s", binascii.hexlify(sigma_M_hat_i).decode())
 
@@ -540,7 +551,8 @@ if __name__ == "__main__":
 
   # Test and benchmark:
   try:
-    randombytes_init(bytes([0]*48), None, 256)
+    entropy_input = [0]*48
+    randombytes_init(bytes(entropy_input), None, 256)
 
     meds = MEDS(args.parset, randombytes)
 
