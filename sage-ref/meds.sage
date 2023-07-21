@@ -338,6 +338,9 @@ class MEDSbase:
         logging.debug(f"mu[{i}]:\n%s", mu_i)
         logging.debug(f"nu[{i}]:\n%s", nu_i)
 
+        if (not mu_i.is_invertible()) or (not nu_i.is_invertible()):
+          raise BadSignatureError("Signature verification failed!")
+
         G_hat[i] = pi(mu_i, nu_i, G[h[i]])
 
         logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
