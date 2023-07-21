@@ -543,12 +543,12 @@ int crypto_sign_open(
     if (h[i] > 0)
     {
       for (int j = 0; j < MEDS_m*MEDS_m; j++)
-        mu[j] = bs_read(&bs, GFq_bits);
+        mu[j] = bs_read(&bs, GFq_bits) % MEDS_p;
 
       bs_finalize(&bs);
 
       for (int j = 0; j < MEDS_n*MEDS_n; j++)
-        nu[j] = bs_read(&bs, GFq_bits);
+        nu[j] = bs_read(&bs, GFq_bits) % MEDS_p;
 
       bs_finalize(&bs);
 
