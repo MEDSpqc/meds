@@ -316,6 +316,13 @@ int crypto_sign(
     B_tilde[i] = &B_tilde_data[i * MEDS_n * MEDS_n];
   }
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   keccak_state h_shake;
   shake256_init(&h_shake);
 
@@ -325,12 +332,17 @@ int crypto_sign(
 
     while (1 == 1)
     {
-      uint8_t sigma_A_tilde_i[MEDS_st_seed_bytes];
-      uint8_t sigma_B_tilde_i[MEDS_st_seed_bytes];
+      uint8_t sigma_A_tilde_i[MEDS_pub_seed_bytes];
+      uint8_t sigma_B_tilde_i[MEDS_pub_seed_bytes];
+
+      for (int j = 0; j < 4; j++)
+        addr_pos[j] = (i >> (j*8)) & 0xff;
+
+      memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
       XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
-           (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-           &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+           (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+           seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
            3);
 
 
@@ -516,6 +528,13 @@ int crypto_sign_open(
   pmod_mat_t mu[MEDS_m*MEDS_m];
   pmod_mat_t nu[MEDS_n*MEDS_n];
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   keccak_state shake;
   shake256_init(&shake);
 
@@ -581,12 +600,18 @@ int crypto_sign_open(
       {
         LOG_VEC_FMT(&sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes, "seeds[%i]", i);
 
-        uint8_t sigma_A_tilde_i[MEDS_st_seed_bytes];
-        uint8_t sigma_B_tilde_i[MEDS_st_seed_bytes];
+        uint8_t sigma_A_tilde_i[MEDS_pub_seed_bytes];
+        uint8_t sigma_B_tilde_i[MEDS_pub_seed_bytes];
+
+        for (int j = 0; j < 4; j++)
+          addr_pos[j] = (i >> (j*8)) & 0xff;
+
+        memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
+
 
         XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
-            (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-            &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+            (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
             3);
 
         pmod_mat_t A_tilde[MEDS_m*MEDS_m];
