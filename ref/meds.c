@@ -537,6 +537,34 @@ int crypto_sign_open(
       LOG_MAT_FMT(mu, MEDS_m, MEDS_m, "mu[%i]", i);
       LOG_MAT_FMT(nu, MEDS_n, MEDS_n, "nu[%i]", i);
 
+      // Check if mu is invetible.
+      {
+        pmod_mat_t tmp_mu[MEDS_m*MEDS_m];
+
+        memcpy(tmp_mu, mu, MEDS_m*MEDS_m*sizeof(GFq_t));
+
+        if (pmod_mat_syst_ct(tmp_mu, MEDS_m, MEDS_m) != 0)
+        {
+          fprintf(stderr, "Signature verification failed; malformed signature!\n");
+
+          return -1;
+        }
+      }
+
+      // Check if nu is invetible.
+      {
+        pmod_mat_t tmp_nu[MEDS_n*MEDS_n];
+
+        memcpy(tmp_nu, nu, MEDS_n*MEDS_n*sizeof(GFq_t));
+
+        if (pmod_mat_syst_ct(tmp_nu, MEDS_n, MEDS_n) != 0)
+        {
+          fprintf(stderr, "Signature verification failed; malformed signature!\n");
+
+          return -1;
+        }
+      }
+
 
       pi(G_hat_i, mu, nu, G[h[i]]);
 
