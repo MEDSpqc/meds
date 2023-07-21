@@ -307,16 +307,16 @@ class MEDSbase:
     ms = ms[(ceil(m*m * GF_BITS / 8) + ceil(n*n * GF_BITS / 8))*w:]
     path = ms[:param.seed_tree_cost]; ms = ms[param.seed_tree_cost:]
     d = ms[:param.digest_bytes]; ms = ms[param.digest_bytes:]
-    self.st_salt = ms[:param.st_salt_bytes]; msg = ms[param.st_salt_bytes:]
+    alpha = ms[:param.st_salt_bytes]; msg = ms[param.st_salt_bytes:]
 
     logging.debug(f"munu:\n0x%s", binascii.hexlify(munu).decode())
     logging.debug(f"path:\n0x%s", binascii.hexlify(path).decode())
     logging.debug(f"digest:\n0x%s", binascii.hexlify(d).decode())
-    logging.debug(f"alpha:\n0x%s", binascii.hexlify(self.st_salt).decode())
+    logging.debug(f"alpha:\n0x%s", binascii.hexlify(alpha).decode())
 
     h = PaseHash(d, self.params)
 
-    sigma = PathToSeedTree(h, path, self.st_salt, self.params)
+    sigma = PathToSeedTree(h, path, alpha, self.params)
 
     G_hat = [None] * t
 
@@ -356,7 +356,7 @@ class MEDSbase:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
-          sigma_prime_i = self.st_salt + sigma[i] + i.to_bytes(4, "little")
+          sigma_prime_i = alpha + sigma[i] + i.to_bytes(4, "little")
 
           logging.debug(f"sigma_prime[{i}]:\n0x%s", binascii.hexlify(sigma_prime_i).decode())
 
