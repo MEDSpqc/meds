@@ -38,6 +38,16 @@
   fprintf(stderr, "\n\n"); \
 } while (0)
 
+#define LOG_HEX_FMT(v, len, fmt, ...) do { \
+  if (sizeof( (char[]){#__VA_ARGS__} ) == 1) \
+    fprintf(stderr, "(%s) " fmt ":\n0x", __func__, ##__VA_ARGS__); \
+  else \
+    fprintf(stderr, "(%s) " fmt ":\n0x", __func__, ##__VA_ARGS__); \
+  for (int _log_i = 0; _log_i < len; _log_i++) \
+    fprintf(stderr, "%02x", (v)[_log_i]); \
+  fprintf(stderr, "\n\n"); \
+} while (0)
+
 #define LOG_MAT(v, m, n, ...) do { \
   if (sizeof( (char[]){#__VA_ARGS__} ) == 1) \
     fprintf(stderr, "(%s) " #v ":\n", __func__); \
@@ -64,6 +74,7 @@
 #define LOG_VEC_FMT(v, len, fmt, ...) do { } while(0);
 
 #define LOG_HEX(v, len, ...) do { } while(0);
+#define LOG_HEX_FMT(v, len, fmt, ...) do { } while(0);
 
 #define LOG_MAT(v, m, n, ...) do { } while(0);
 #define LOG_MAT_FMT(v, m, n, fmt, ...) do { } while(0);

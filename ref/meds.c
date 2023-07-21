@@ -340,14 +340,19 @@ int crypto_sign(
 
       memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
+      LOG_HEX_FMT(seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4, "sigma_prime[%i]", i);
+
       XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
            (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
            3);
 
 
-      rnd_inv_matrix(A_tilde[i], MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_st_seed_bytes);
-      rnd_inv_matrix(B_tilde[i], MEDS_n, MEDS_n, sigma_B_tilde_i, MEDS_st_seed_bytes);
+      LOG_HEX_FMT(sigma_A_tilde_i, MEDS_pub_seed_bytes, "sigma_A_tilde[%i]", i);
+      rnd_inv_matrix(A_tilde[i], MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_pub_seed_bytes);
+
+      LOG_HEX_FMT(sigma_B_tilde_i, MEDS_pub_seed_bytes, "sigma_B_tilde[%i]", i);
+      rnd_inv_matrix(B_tilde[i], MEDS_n, MEDS_n, sigma_B_tilde_i, MEDS_pub_seed_bytes);
 
       LOG_MAT_FMT(A_tilde[i], MEDS_m, MEDS_m, "A_tilde[%i]", i);
       LOG_MAT_FMT(B_tilde[i], MEDS_n, MEDS_n, "B_tilde[%i]", i);
@@ -608,6 +613,7 @@ int crypto_sign_open(
 
         memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
+        LOG_HEX_FMT(seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4, "sigma_prime[%i]", i);
 
         XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
             (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
@@ -617,11 +623,11 @@ int crypto_sign_open(
         pmod_mat_t A_tilde[MEDS_m*MEDS_m];
         pmod_mat_t B_tilde[MEDS_n*MEDS_n];
 
-        LOG_VEC(sigma_A_tilde_i, MEDS_sec_seed_bytes);
-        rnd_inv_matrix(A_tilde, MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_st_seed_bytes);
+        LOG_VEC(sigma_A_tilde_i, MEDS_pub_seed_bytes);
+        rnd_inv_matrix(A_tilde, MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_pub_seed_bytes);
 
-        LOG_VEC(sigma_B_tilde_i, MEDS_sec_seed_bytes);
-        rnd_inv_matrix(B_tilde, MEDS_n, MEDS_n, sigma_B_tilde_i, MEDS_st_seed_bytes);
+        LOG_VEC(sigma_B_tilde_i, MEDS_pub_seed_bytes);
+        rnd_inv_matrix(B_tilde, MEDS_n, MEDS_n, sigma_B_tilde_i, MEDS_pub_seed_bytes);
 
         LOG_MAT_FMT(A_tilde, MEDS_m, MEDS_m, "A_tilde[%i]", i);
         LOG_MAT_FMT(B_tilde, MEDS_n, MEDS_n, "B_tilde[%i]", i);
