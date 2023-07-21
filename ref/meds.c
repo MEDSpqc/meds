@@ -320,6 +320,13 @@ int crypto_sign(
     B_tilde[i] = &B_tilde_data[i * MEDS_n * MEDS_n];
   }
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   keccak_state h_shake;
   shake256_init(&h_shake);
 
@@ -329,12 +336,17 @@ int crypto_sign(
 
     while (1 == 1)
     {
-      uint8_t sigma_A_tilde_i[MEDS_st_seed_bytes];
-      uint8_t sigma_B_tilde_i[MEDS_st_seed_bytes];
+      uint8_t sigma_A_tilde_i[MEDS_pub_seed_bytes];
+      uint8_t sigma_B_tilde_i[MEDS_pub_seed_bytes];
+
+      for (int j = 0; j < 4; j++)
+        addr_pos[j] = (i >> (j*8)) & 0xff;
+
+      memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
       XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
-           (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-           &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+           (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+           seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
            3);
 
       LOG_HEX_FMT(sigma_A_tilde_i, MEDS_st_seed_bytes, "sigma_A_tilde[%i]", i);
@@ -527,6 +539,13 @@ int crypto_sign_open(
   pmod_mat_t mu[MEDS_m*MEDS_m];
   pmod_mat_t nu[MEDS_n*MEDS_n];
 
+
+  uint8_t seed_buf[MEDS_st_salt_bytes + MEDS_st_seed_bytes + sizeof(uint32_t)] = {0};
+  memcpy(seed_buf, alpha, MEDS_st_salt_bytes);
+
+  uint8_t *addr_pos = seed_buf + MEDS_st_salt_bytes + MEDS_st_seed_bytes;
+
+
   keccak_state shake;
   shake256_init(&shake);
 
@@ -535,18 +554,46 @@ int crypto_sign_open(
     if (h[i] > 0)
     {
       for (int j = 0; j < MEDS_m*MEDS_m; j++)
-        mu[j] = bs_read(&bs, GFq_bits);
+        mu[j] = bs_read(&bs, GFq_bits) % MEDS_p;
 
       bs_finalize(&bs);
 
       for (int j = 0; j < MEDS_n*MEDS_n; j++)
-        nu[j] = bs_read(&bs, GFq_bits);
+        nu[j] = bs_read(&bs, GFq_bits) % MEDS_p;
 
       bs_finalize(&bs);
 
 
       LOG_MAT_FMT(mu, MEDS_m, MEDS_m, "mu[%i]", i);
       LOG_MAT_FMT(nu, MEDS_n, MEDS_n, "nu[%i]", i);
+
+      // Check if mu is invetible.
+      {
+        pmod_mat_t tmp_mu[MEDS_m*MEDS_m];
+
+        memcpy(tmp_mu, mu, MEDS_m*MEDS_m*sizeof(GFq_t));
+
+        if (pmod_mat_syst_ct(tmp_mu, MEDS_m, MEDS_m) != 0)
+        {
+          fprintf(stderr, "Signature verification failed; malformed signature!\n");
+
+          return -1;
+        }
+      }
+
+      // Check if nu is invetible.
+      {
+        pmod_mat_t tmp_nu[MEDS_n*MEDS_n];
+
+        memcpy(tmp_nu, nu, MEDS_n*MEDS_n*sizeof(GFq_t));
+
+        if (pmod_mat_syst_ct(tmp_nu, MEDS_n, MEDS_n) != 0)
+        {
+          fprintf(stderr, "Signature verification failed; malformed signature!\n");
+
+          return -1;
+        }
+      }
 
 
       pi(G_hat_i, mu, nu, G[h[i]]);
@@ -569,12 +616,17 @@ int crypto_sign_open(
       {
         LOG_VEC_FMT(&sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes, "seeds[%i]", i);
 
-        uint8_t sigma_A_hat_i[MEDS_st_seed_bytes];
-        uint8_t sigma_B_hat_i[MEDS_st_seed_bytes];
+        uint8_t sigma_A_hat_i[MEDS_pub_seed_bytes];
+        uint8_t sigma_B_hat_i[MEDS_pub_seed_bytes];
+
+        for (int j = 0; j < 4; j++)
+          addr_pos[j] = (i >> (j*8)) & 0xff;
+
+        memcpy(seed_buf + MEDS_st_salt_bytes, &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes);
 
         XOF((uint8_t*[]){sigma_A_hat_i, sigma_B_hat_i, &sigma[i*MEDS_st_seed_bytes]},
-            (size_t[]){MEDS_st_seed_bytes, MEDS_st_seed_bytes, MEDS_st_seed_bytes},
-            &sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes,
+            (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
+            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
             3);
 
         pmod_mat_t A_hat_i[MEDS_m*MEDS_m];
