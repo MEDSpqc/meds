@@ -303,6 +303,10 @@ int crypto_sign(
 
   uint8_t *sigma = &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(MEDS_seed_tree_height, 0)];
 
+  for (int i = 0; i < MEDS_t; i++)
+  {
+     LOG_HEX_FMT((&sigma[i*MEDS_st_seed_bytes]), MEDS_st_seed_bytes, "sigma[%i]", i);
+  }
 
   pmod_mat_t A_tilde_data[MEDS_t * MEDS_m * MEDS_m];
   pmod_mat_t B_tilde_data[MEDS_t * MEDS_m * MEDS_m];
@@ -346,7 +350,6 @@ int crypto_sign(
            (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
            3);
-
 
       LOG_HEX_FMT(sigma_A_tilde_i, MEDS_pub_seed_bytes, "sigma_A_tilde[%i]", i);
       rnd_inv_matrix(A_tilde[i], MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_pub_seed_bytes);
@@ -458,6 +461,7 @@ int crypto_sign_open(
     const unsigned char *pk
   )
 {
+  LOG_HEX(pk, MEDS_PK_BYTES);
   LOG_HEX(sm, smlen);
 
   pmod_mat_t G_data[MEDS_k*MEDS_m*MEDS_n * MEDS_s];
@@ -505,11 +509,16 @@ int crypto_sign_open(
   for (int i = 0; i < MEDS_s; i++)
     LOG_MAT_FMT(G[i], MEDS_k, MEDS_m*MEDS_n, "G[%i]", i);
 
+  LOG_HEX_FMT(sm, MEDS_w * (CEILING(MEDS_m*MEDS_m * GFq_bits, 8) + CEILING(MEDS_n*MEDS_n * GFq_bits, 8)), "munu");
+  LOG_HEX_FMT(sm + MEDS_w * (CEILING(MEDS_m*MEDS_m * GFq_bits, 8) + CEILING(MEDS_n*MEDS_n * GFq_bits, 8)),
+      MEDS_max_path_len * MEDS_st_seed_bytes, "path");
+
   uint8_t *digest = (uint8_t*)sm + (MEDS_SIG_BYTES - MEDS_digest_bytes - MEDS_st_salt_bytes);
 
   uint8_t *alpha = (uint8_t*)sm + (MEDS_SIG_BYTES - MEDS_st_salt_bytes);
 
-  LOG_VEC(digest, MEDS_digest_bytes);
+  LOG_HEX(digest, MEDS_digest_bytes);
+  LOG_HEX(alpha, MEDS_st_salt_bytes);
 
   uint8_t h[MEDS_t];
 
@@ -595,7 +604,12 @@ int crypto_sign_open(
 
       LOG_MAT_FMT(G_hat_i, MEDS_k, MEDS_m*MEDS_n, "G_hat[%i]", i);
 
-      pmod_mat_syst_ct(G_hat_i, MEDS_k, MEDS_m*MEDS_n);
+      if (pmod_mat_syst_ct(G_hat_i, MEDS_k, MEDS_m*MEDS_n) < 0)
+      {
+        fprintf(stderr, "Signature verification failed!\n");
+
+        return -1;
+      }
 
       LOG_MAT_FMT(G_hat_i, MEDS_k, MEDS_m*MEDS_n, "G_hat[%i]", i);
     }
@@ -605,8 +619,8 @@ int crypto_sign_open(
       {
         LOG_VEC_FMT(&sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes, "seeds[%i]", i);
 
-        uint8_t sigma_A_tilde_i[MEDS_pub_seed_bytes];
-        uint8_t sigma_B_tilde_i[MEDS_pub_seed_bytes];
+        uint8_t sigma_A_hat_i[MEDS_pub_seed_bytes];
+        uint8_t sigma_B_hat_i[MEDS_pub_seed_bytes];
 
         for (int j = 0; j < 4; j++)
           addr_pos[j] = (i >> (j*8)) & 0xff;
@@ -615,25 +629,25 @@ int crypto_sign_open(
 
         LOG_HEX_FMT(seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4, "sigma_prime[%i]", i);
 
-        XOF((uint8_t*[]){sigma_A_tilde_i, sigma_B_tilde_i, &sigma[i*MEDS_st_seed_bytes]},
+        XOF((uint8_t*[]){sigma_A_hat_i, sigma_B_hat_i, &sigma[i*MEDS_st_seed_bytes]},
             (size_t[]){MEDS_pub_seed_bytes, MEDS_pub_seed_bytes, MEDS_st_seed_bytes},
             seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
             3);
 
-        pmod_mat_t A_tilde[MEDS_m*MEDS_m];
-        pmod_mat_t B_tilde[MEDS_n*MEDS_n];
+        pmod_mat_t A_hat_i[MEDS_m*MEDS_m];
+        pmod_mat_t B_hat_i[MEDS_n*MEDS_n];
 
-        LOG_VEC(sigma_A_tilde_i, MEDS_pub_seed_bytes);
-        rnd_inv_matrix(A_tilde, MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_pub_seed_bytes);
+        LOG_HEX_FMT(sigma_A_hat_i, MEDS_pub_seed_bytes, "sigma_A_hat[%i]", i);
+        rnd_inv_matrix(A_hat_i, MEDS_m, MEDS_m, sigma_A_hat_i, MEDS_pub_seed_bytes);
 
-        LOG_VEC(sigma_B_tilde_i, MEDS_pub_seed_bytes);
-        rnd_inv_matrix(B_tilde, MEDS_n, MEDS_n, sigma_B_tilde_i, MEDS_pub_seed_bytes);
+        LOG_HEX_FMT(sigma_B_hat_i, MEDS_pub_seed_bytes, "sigma_B_hat[%i]", i);
+        rnd_inv_matrix(B_hat_i, MEDS_n, MEDS_n, sigma_B_hat_i, MEDS_pub_seed_bytes);
 
-        LOG_MAT_FMT(A_tilde, MEDS_m, MEDS_m, "A_tilde[%i]", i);
-        LOG_MAT_FMT(B_tilde, MEDS_n, MEDS_n, "B_tilde[%i]", i);
+        LOG_MAT_FMT(A_hat_i, MEDS_m, MEDS_m, "A_hat[%i]", i);
+        LOG_MAT_FMT(B_hat_i, MEDS_n, MEDS_n, "B_hat[%i]", i);
 
 
-        pi(G_hat_i, A_tilde, B_tilde, G[0]);
+        pi(G_hat_i, A_hat_i, B_hat_i, G[0]);
 
         LOG_MAT_FMT(G_hat_i, MEDS_k, MEDS_m*MEDS_n, "G_hat[%i]", i);
 
