@@ -193,7 +193,7 @@ class MEDSbase:
 
     for i in range(t):
       while True:
-        sigma_A_tilde, sigma_B_tilde, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
+        sigma_A_tilde, sigma_B_tilde, sigma[i] = XOF(alpha + sigma[i] + i.to_bytes(4, "little"), [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
 
         logging.debug(f"sigma_A_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_A_tilde).decode())
 
@@ -348,7 +348,7 @@ class MEDSbase:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
-          sigma_A_hat_i, sigma_B_hat_i, sigma[i] = XOF(sigma[i], [param.st_seed_bytes, param.st_seed_bytes, param.st_seed_bytes])
+          sigma_A_hat_i, sigma_B_hat_i, sigma[i] = XOF(self.st_salt + sigma[i] + i.to_bytes(4, "little"), [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
 
           logging.debug(f"sigma_A_hat[{i}]:\n%s", [int(i) for i in sigma_A_hat_i])
           A_hat_i = ExpandInvMat(sigma_A_hat_i, GFq, m)
