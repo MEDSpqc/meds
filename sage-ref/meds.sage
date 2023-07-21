@@ -193,11 +193,16 @@ class MEDSbase:
 
     for i in range(t):
       while True:
-        sigma_A_tilde, sigma_B_tilde, sigma[i] = XOF(alpha + sigma[i] + i.to_bytes(4, "little"), [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
+        sigma_prime_i = alpha + sigma[i] + i.to_bytes(4, "little")
+
+        logging.debug(f"sigma_prime[{i}]:\n0x%s", binascii.hexlify(sigma_prime_i).decode())
+
+        sigma_A_tilde, sigma_B_tilde, sigma[i] = XOF(sigma_prime_i, [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
 
         logging.debug(f"sigma_A_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_A_tilde).decode())
-
         A_tilde[i] = ExpandInvMat(sigma_A_tilde, GFq, m)
+
+        logging.debug(f"sigma_B_tilde[{i}]:\n0x%s", binascii.hexlify(sigma_B_tilde).decode())
         B_tilde[i] = ExpandInvMat(sigma_B_tilde, GFq, n)
 
         logging.debug(f"A_tilde[{i}]:\n%s", A_tilde[i])
@@ -348,12 +353,16 @@ class MEDSbase:
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
-          sigma_A_hat_i, sigma_B_hat_i, sigma[i] = XOF(self.st_salt + sigma[i] + i.to_bytes(4, "little"), [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
+          sigma_prime_i = self.st_salt + sigma[i] + i.to_bytes(4, "little")
 
-          logging.debug(f"sigma_A_hat[{i}]:\n%s", [int(i) for i in sigma_A_hat_i])
+          logging.debug(f"sigma_prime[{i}]:\n0x%s", binascii.hexlify(sigma_prime_i).decode())
+
+          sigma_A_hat_i, sigma_B_hat_i, sigma[i] = XOF(sigma_prime_i, [param.pub_seed_bytes, param.pub_seed_bytes, param.st_seed_bytes])
+
+          logging.debug(f"sigma_A_hat[{i}]:\n0x%s", binascii.hexlify(sigma_A_hat_i).decode())
           A_hat_i = ExpandInvMat(sigma_A_hat_i, GFq, m)
 
-          logging.debug(f"sigma_B_hat[{i}]:\n%s", [int(i) for i in sigma_B_hat_i])
+          logging.debug(f"sigma_B_hat[{i}]:\n0x%s", binascii.hexlify(sigma_B_hat_i).decode())
           B_hat_i = ExpandInvMat(sigma_B_hat_i, GFq, n)
 
           logging.debug(f"A_hat[{i}]:\n%s", A_hat_i)

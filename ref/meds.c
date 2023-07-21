@@ -351,8 +351,6 @@ int crypto_sign(
            seed_buf, MEDS_st_salt_bytes + MEDS_st_seed_bytes + 4,
            3);
 
-      LOG_HEX_FMT(sigma_A_tilde_i, MEDS_st_seed_bytes, "sigma_A_tilde[%i]", i);
-
       LOG_HEX_FMT(sigma_A_tilde_i, MEDS_pub_seed_bytes, "sigma_A_tilde[%i]", i);
       rnd_inv_matrix(A_tilde[i], MEDS_m, MEDS_m, sigma_A_tilde_i, MEDS_pub_seed_bytes);
 
@@ -639,10 +637,10 @@ int crypto_sign_open(
         pmod_mat_t A_hat_i[MEDS_m*MEDS_m];
         pmod_mat_t B_hat_i[MEDS_n*MEDS_n];
 
-        LOG_VEC_FMT(sigma_A_hat_i, MEDS_st_seed_bytes, "sigma_A_hat[%i]", i);
+        LOG_HEX_FMT(sigma_A_hat_i, MEDS_pub_seed_bytes, "sigma_A_hat[%i]", i);
         rnd_inv_matrix(A_hat_i, MEDS_m, MEDS_m, sigma_A_hat_i, MEDS_pub_seed_bytes);
 
-        LOG_VEC_FMT(sigma_B_hat_i, MEDS_st_seed_bytes, "sigma_B_hat[%i]", i);
+        LOG_HEX_FMT(sigma_B_hat_i, MEDS_pub_seed_bytes, "sigma_B_hat[%i]", i);
         rnd_inv_matrix(B_hat_i, MEDS_n, MEDS_n, sigma_B_hat_i, MEDS_pub_seed_bytes);
 
         LOG_MAT_FMT(A_hat_i, MEDS_m, MEDS_m, "A_hat[%i]", i);
