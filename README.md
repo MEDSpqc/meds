@@ -2,12 +2,12 @@
 
 ## Matrix Equivalence Digital Signature
 
-This repository procides the reference implentation of the PQC signature scheme MEDS
+This repository provides the reference implementation of the PQC signature scheme MEDS
 as submitted to the NIST PQC Signature standardization process.
 
 The website accompanying the MEDS submission is [meds-pqc.org](https://www.meds-pqc.org/).
 
-The submission document with the MEDS specificaiton can be found [here](https://www.meds-pqc.org/spec/MEDS-2023-05-31.pdf).
+The submission document with the MEDS specification can be found [here](https://www.meds-pqc.org/spec/MEDS-2023-05-31.pdf).
 
 ## C Reference Implementation
 
@@ -16,8 +16,8 @@ using the provided Makefile.
 
 We provide three programs:
 `test` to run at test of key generation, signing, and verification,
-`bench` for benchmarling the implentation using several rund, and
-`KAT_test` for computing known answert tests.
+`bench` for benchmarking the implementation using several rounds, and
+`KAT_test` for computing known answer tests.
 
 The test can be compiled and run by
 
