@@ -15,7 +15,7 @@ using the provided Makefile.
 
 We provide three programs:
 `test` to run at test of key generation, signing, and verification,
-`bench` for benchmarking the implementation using several rund, and
+`bench` for benchmarking the implementation using several runds, and
 `KAT_test` for computing known answer tests.
 
 The test can be compiled and run by
