@@ -7,12 +7,18 @@ as submitted to the NIST PQC Signature standardization process.
 
 The website accompanying the MEDS submission is [meds-pqc.org](https://www.meds-pqc.org/).
 
-The submission document with the MEDS specification can be found [here](https://www.meds-pqc.org/spec/MEDS-2023-05-31.pdf).
+The submission document with the MEDS specification can be found [here](https://www.meds-pqc.org/spec/MEDS.pdf).
 
 ## C Reference Implementation
 
-The reference implementation in directory `/ref` can be compiled
+The reference implementation in directory `ref/` can be compiled
 using the provided Makefile.
+
+The Python script 'ref/params.py' requires python-tabulate:
+
+```console
+   pip install tabulate
+``
 
 We provide three programs:
 `test` to run at test of key generation, signing, and verification,
@@ -40,7 +46,7 @@ and the KAT test using
 The default parameter set is the `toy` parameter set. Another parameter set can be selected using `PARAM`, e.g.:
 
 ```console
-   make RUN P=ARAM=MEDS9923
+   make RUN PARAM=MEDS9923
 ```
 
 A list of available parameter sets can be obtained by:
@@ -65,7 +71,7 @@ The code package of the MEDS NIST submission with dedicated directories for each
 
 ## Sage Reference Implementation
 
-The Sage reference implementation in directory `/sage-ref`
+The Sage reference implementation in directory `sage-ref/`
 requires PyCryptodome for SHAKE.
 
 Install PyCryptodome by:
