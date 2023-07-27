@@ -18,7 +18,7 @@ The Python script 'ref/params.py' requires python-tabulate:
 
 ```console
    pip install tabulate
-``
+```
 
 We provide three programs:
 `test` to run at test of key generation, signing, and verification,
