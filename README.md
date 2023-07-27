@@ -14,7 +14,7 @@ The submission document with the MEDS specification can be found [here](https://
 The reference implementation in directory `ref/` can be compiled
 using the provided Makefile.
 
-The Python script 'ref/params.py' requires python-tabulate:
+The Python script `ref/params.py` requires python-tabulate:
 
 ```console
    pip install tabulate
