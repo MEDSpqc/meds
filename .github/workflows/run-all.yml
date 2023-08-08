@@ -1,4 +1,4 @@
-name: Makefile CI
+name: Check C reference implementation
 
 on:
   push:
@@ -14,5 +14,5 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Run make RUN_ALL
+    - name: C ref - make RUN_ALL
       run: make -C ref RUN_ALL

@@ -1,0 +1,4 @@
+*.sage.py
+.*.swp
+__pycache__
+MEDS.py

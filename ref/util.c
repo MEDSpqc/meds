@@ -3,7 +3,7 @@
 
 #include "fips202.h"
 
-#include "log.h"
+//#include "log.h"
 
 #include "util.h"
 #include "meds.h"
@@ -136,19 +136,8 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
   if (len_h < MEDS_t)
     return -1;
 
-#ifdef DEBUG
-  fprintf(stderr, "(%s) digest: [", __func__);
-  for (int i = 0; i < MEDS_digest_bytes; i++)
-  {
-    fprintf(stderr, "%i", digest[i]);
-    if (i < MEDS_digest_bytes-1)
-      fprintf(stderr, ", ");
-  }
-  fprintf(stderr, "]\n");
-  fprintf(stderr, "\n");
-  fprintf(stderr, "(%s) digest len: %i\n", __func__, digest_len);
-  fprintf(stderr, "\n");
-#endif
+  //LOG_VEC(digest, MEDS_digest_bytes);
+  //LOG_VAL(digest_len);
 
   keccak_state shake;
 
@@ -178,10 +167,7 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
     if (h[pos] > 0)
       continue;
 
-#ifdef DEBUG
-    fprintf(stderr, "(%s) pos: %lu\n", __func__, pos);
-    fprintf(stderr, "\n");
-#endif
+    //LOG("pos: %lu", pos);
 
     uint8_t val = 0;
 
@@ -191,10 +177,8 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
       val = val & MEDS_s_mask;
     }
 
-#ifdef DEBUG
-    fprintf(stderr, "(%s) p: %lu  v: %u\n", __func__, pos, val);
-    fprintf(stderr, "\n");
-#endif
+    //LOG("p: %lu  v: %u", pos, val);
+
     h[pos] = val;
 
     i++;
