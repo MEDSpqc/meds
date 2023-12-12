@@ -225,13 +225,13 @@ params = [
         sec_seed_bytes = 256 >> 3,
         st_seed_bytes = 128 >> 3,
         st_salt_bytes = 256 >> 3,
-        q = 8191,
-        m = 10,
-        n = 10,
-        k = 10,
-        s = 4,
-        t = 16,
-        w = 6,
+        q = 13,
+        m = 4,
+        n = 4,
+        k = 4,
+        s = 2,
+        t = 4,
+        w = 2,
         _name = "toy"),
 ]
 
@@ -394,6 +394,7 @@ def gen_param(parset):
     print(f"{ind}#define GFq_t uint{ceil(log(param.q, 256))*8}_t")
     print(f"{ind}#define GFq_bits {ceil(log(param.q, 2))}")
     print(f"{ind}#define GFq_bytes {ceil(ceil(log(param.q, 2))/8)}")
+    print(f"{ind}#define GFq_fmt \"%{ceil(log(param.q, 10))}u\"")
 
     print()
 

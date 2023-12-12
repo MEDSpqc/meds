@@ -15,8 +15,8 @@ void pmod_mat_fprint(FILE *stream, pmod_mat_t *M, int M_r, int M_c)
   {
     fprintf(stream, "[");
     for (int c = 0; c < M_c-1; c++)
-      fprintf(stream, "%4i ", pmod_mat_entry(M, M_r, M_c, r, c));
-    fprintf(stream, "%4i", pmod_mat_entry(M, M_r, M_c, r, M_c-1));
+      fprintf(stream, GFq_fmt " ", pmod_mat_entry(M, M_r, M_c, r, c));
+    fprintf(stream, GFq_fmt, pmod_mat_entry(M, M_r, M_c, r, M_c-1));
     fprintf(stream, "]\n");
   }
 }

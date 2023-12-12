@@ -132,3 +132,33 @@ uint32_t bs_read(bitstream_t *bs, uint32_t data_len)
   return data;
 }
 
+#ifdef TEST
+void main()
+{
+  uint32_t data[10] = {29985, 56003, 204, 4, 0, 970, 55415, 12867, 3, 427};
+
+  uint32_t widths[10] = {16, 18, 9, 3, 2, 12, 17, 15, 3, 11};
+
+  uint8_t bs_buf[256];
+  bitstream_t bs;
+
+  bs_init(&bs, bs_buf, sizeof(bs_buf));
+
+  for (int i = 0; i < 10; i++)
+    bs_write(&bs, data[i], widths[i]);
+
+  bs_finalize(&bs);
+
+  bs_init(&bs, bs_buf, sizeof(bs_buf));
+
+  for (int i = 0; i < 10; i++)
+  {
+    uint32_t val;
+
+    val = bs_read(&bs, widths[i]);
+
+    printf("%u %u\n", data[i], val);
+  }
+}
+#endif
+

@@ -373,13 +373,17 @@ int crypto_sign(
     LOG_MAT_FMT(G_tilde_ti, MEDS_k, MEDS_m*MEDS_n, "G_tilde[%i]", i);
 
     bitstream_t bs;
-    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)];
+    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)] = {0};
     
     bs_init(&bs, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
     for (int r = 0; r < MEDS_k; r++)
       for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
         bs_write(&bs, G_tilde_ti[r * MEDS_m*MEDS_n + j], GFq_bits);
+
+    bs_finalize(&bs);
+
+    LOG_HEX(bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
     shake256_absorb(&h_shake, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
   }
@@ -664,13 +668,15 @@ int crypto_sign_open(
 
 
     bitstream_t bs;
-    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)];
+    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)] = {0};
     
     bs_init(&bs, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
     for (int r = 0; r < MEDS_k; r++)
       for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
         bs_write(&bs, G_hat_i[r * MEDS_m*MEDS_n + j], GFq_bits);
+
+    bs_finalize(&bs);
  
     shake256_absorb(&shake, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
   }

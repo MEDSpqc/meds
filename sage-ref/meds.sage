@@ -92,13 +92,13 @@ class MEDSbase:
 
         G[i] = SF(G[i])
 
-        logging.debug(f"G[{i}]:\n%s", G[i])
-
         # check if we got systematic form
         if G[i] == None:
           # if no systematic form loop to try again for this index
           logging.debug(f"redo G[{i}]")
           continue
+
+        logging.debug(f"G[{i}]:\n%s", G[i])
 
         # G[i] is in systematic form; breal while loop
         break
@@ -189,7 +189,8 @@ class MEDSbase:
 
     A_tilde = [None]*t
     B_tilde = [None]*t
-    G_tilde = [None]*t
+
+    comp = bytes()
 
     for i in range(t):
       while True:
@@ -208,31 +209,30 @@ class MEDSbase:
         logging.debug(f"A_tilde[{i}]:\n%s", A_tilde[i])
         logging.debug(f"B_tilde[{i}]:\n%s", B_tilde[i])
 
-        G_tilde[i] = pi(A_tilde[i], B_tilde[i], G_0)
+        G_tilde_i = pi(A_tilde[i], B_tilde[i], G_0)
 
-        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
+        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde_i)
 
-        G_tilde[i] = SF(G_tilde[i])
+        G_tilde_i = SF(G_tilde_i)
 
-        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
+        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde_i)
 
         # check if we got systematic form
-        if G_tilde[i] == None:
+        if G_tilde_i == None:
           # if no systematic form loop to try again for this index
           logging.debug(f"redo G[{i}]")
           continue
 
-        # G_tilde[i] is in systematic form; breal while loop
+        # G_tilde[i] is in systematic form; break while loop
         break
+
+      bs_buf  = Compress(G_tilde_i[:,k:])
+      logging.debug(f"bs_buf:\n0x%s", bs_buf.hex()) #[int(i) for i in bs_buf])
+      comp += bs_buf
 
 
     if type(msg) == str:
       msg = msg.encode('utf8')
-
-    comp = bytes()
-
-    for G_tilde_i in G_tilde:
-      comp += Compress(G_tilde_i[:,k:])
 
     d = H(self.params)(comp + msg)
 
