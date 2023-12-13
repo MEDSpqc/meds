@@ -5,6 +5,8 @@ PARAM = toy
 LIBS = -lssl -lcrypto
 CC := gcc
 
+INC := ../lib
+
 ifdef DEBUG
 CFLAGS := -g -Wall -D$(PARAM) -DDEBUG
 OBJDIR := debug/$(PARAM)
@@ -17,7 +19,7 @@ ifdef LOG
 CFLAGS += -DDEBUG
 endif
 
-CFLAGS += -I$(OBJDIR) -INIST
+CFLAGS += -I$(OBJDIR) -INIST -I$(INC)
 
 EXES = test bench KAT_test
 

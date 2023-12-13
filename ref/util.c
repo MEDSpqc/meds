@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "BearSSL_src_inner.h"
 #include "fips202.h"
 
 //#include "log.h"
@@ -79,7 +80,7 @@ redo:
         // swap
         for (int r2 = r+1; r2 < M_r; r2++)
         {
-          uint64_t Mrr = pmod_mat_entry(tmp, M_r, M_c, r, r);
+          int32_t Mrr = pmod_mat_entry(tmp, M_r, M_c, r, r);
 
           for (int c = r; c < M_c; c++)
           {
@@ -87,7 +88,7 @@ redo:
 
             uint64_t Mrc = pmod_mat_entry(tmp, M_r, M_c, r, c);
 
-            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * (Mrr == 0)) % MEDS_p);
+            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * EQ0(Mrr)) % MEDS_p);
           }
         }
 
@@ -119,7 +120,7 @@ redo:
 
             val = tmp1 - val;
 
-            val += MEDS_p * (val < 0);
+            val += MEDS_p * LT0(val);
 
             pmod_mat_set_entry(tmp, M_r, M_c,  r2, c, val);
           }
@@ -246,7 +247,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
       val = tmp0 - val;
 
-      val += MEDS_p * (val < 0);
+      val += MEDS_p * LT0(val);
 
       pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  MEDS_n-1, c, val);
     }
@@ -295,7 +296,7 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
 
         val = tmp1 - val;
 
-        val += MEDS_p * (val < 0);
+        val += MEDS_p * LT0(val);
 
         pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  r, c, val);
     }

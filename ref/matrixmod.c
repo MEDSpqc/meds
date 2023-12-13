@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "BearSSL_src_inner.h"
+
 #include "params.h"
-#include"matrixmod.h"
+#include "matrixmod.h"
 
 void pmod_mat_print(pmod_mat_t *M, int M_r, int M_c)
 {
@@ -48,7 +50,7 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
     // swap
     for (int r2 = r+1; r2 < M_r; r2++)
     {
-      uint64_t Mrr = pmod_mat_entry(M, M_r, M_c, r, r);
+      int32_t Mrr = pmod_mat_entry(M, M_r, M_c, r, r);
 
       for (int c = r; c < M_c; c++)
       {
@@ -56,7 +58,7 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
 
         uint64_t Mrc = pmod_mat_entry(M, M_r, M_c, r, c);
 
-        pmod_mat_set_entry(M, M_r, M_c, r, c, (Mrc + val * (Mrr == 0)) % MEDS_p);
+        pmod_mat_set_entry(M, M_r, M_c, r, c, (Mrc + val * EQ0(Mrr)) % MEDS_p);
       }
     }
 
@@ -84,11 +86,11 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
         uint64_t tmp0 = pmod_mat_entry(M, M_r, M_c, r, c);
         uint64_t tmp1 = pmod_mat_entry(M, M_r, M_c, r2, c);
 
-        int64_t val = (tmp0 * factor) % MEDS_p;
+        int32_t val = (tmp0 * factor) % MEDS_p;
 
         val = tmp1 - val;
 
-        val += MEDS_p * (val < 0);
+        val += MEDS_p * LT0(val);
 
         pmod_mat_set_entry(M, M_r, M_c,  r2, c, val);
       }
@@ -104,11 +106,11 @@ int pmod_mat_syst_ct(pmod_mat_t *M, int M_r, int M_c)
       uint64_t tmp0 = pmod_mat_entry(M, M_r, M_c, r, r);
       uint64_t tmp1 = pmod_mat_entry(M, M_r, M_c, r2, r);
 
-      int64_t val = (tmp0 * factor) % MEDS_p;
+      int32_t val = (tmp0 * factor) % MEDS_p;
 
       val = tmp1 - val;
 
-      val += MEDS_p * (val < 0);
+      val += MEDS_p * LT0(val);
 
       pmod_mat_set_entry(M, M_r, M_c,  r2, r, val);
 
