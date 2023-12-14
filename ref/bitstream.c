@@ -29,6 +29,9 @@ int bs_write(bitstream_t *bs, uint32_t data, uint32_t data_len)
     return -1;
   }
 
+  if (bs->bit_pos == 0)
+    bs->data[bs->byte_pos] = 0;
+
   if (bs->bit_pos + data_len < 8)
   {
     bs->data[bs->byte_pos] |= data << bs->bit_pos;
