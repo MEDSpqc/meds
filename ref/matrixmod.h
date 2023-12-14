@@ -6,6 +6,15 @@
 
 #include "params.h"
 
+
+static inline
+GFq_t GFq_eq0(GFq_t x)
+{
+	uint64_t q = (uint64_t)x;
+	return ~(q | -q) >> 63;
+}
+
+
 #define pmod_mat_entry(M, M_r, M_c, r, c) M[(M_c)*(r)+(c)]
 
 #define pmod_mat_set_entry(M, M_r, M_c, r, c, v) (M[(M_c)*(r)+(c)] = v)

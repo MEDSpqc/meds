@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "BearSSL_src_inner.h"
 #include "fips202.h"
 
 //#include "log.h"
@@ -88,7 +87,7 @@ redo:
 
             uint64_t Mrc = pmod_mat_entry(tmp, M_r, M_c, r, c);
 
-            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * EQ0(Mrr)) % MEDS_p);
+            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * GFq_eq0(Mrr)) % MEDS_p);
           }
         }
 
@@ -116,11 +115,9 @@ redo:
             uint64_t tmp0 = pmod_mat_entry(tmp, M_r, M_c, r, c);
             uint64_t tmp1 = pmod_mat_entry(tmp, M_r, M_c, r2, c);
 
-            int64_t val = (tmp0 * factor) % MEDS_p;
+            uint64_t val = (tmp0 * factor) % MEDS_p;
 
-            val = tmp1 - val;
-
-            val += MEDS_p * LT0(val);
+            val = (MEDS_p + tmp1 - val) % MEDS_p;
 
             pmod_mat_set_entry(tmp, M_r, M_c,  r2, c, val);
           }
@@ -243,11 +240,9 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
       uint64_t tmp0 = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, MEDS_n-1, c);
       uint64_t tmp1 = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, r, c);
 
-      int64_t val = (tmp1 * factor) % MEDS_p;
+      uint64_t val = (tmp1 * factor) % MEDS_p;
 
-      val = tmp0 - val;
-
-      val += MEDS_p * LT0(val);
+      val = (MEDS_p + tmp0 - val) % MEDS_p;
 
       pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  MEDS_n-1, c, val);
     }
@@ -292,11 +287,9 @@ int solve(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, GFq_t Amm)
         uint64_t tmp0 = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, MEDS_n-1, c);
         uint64_t tmp1 = pmod_mat_entry(M, MEDS_n, MEDS_m + MEDS_m + 2, r, c);
 
-        int64_t val = (tmp0 * factor) % MEDS_p;
+        uint64_t val = (tmp0 * factor) % MEDS_p;
 
-        val = tmp1 - val;
-
-        val += MEDS_p * LT0(val);
+        val = (MEDS_p + tmp1 - val) % MEDS_p;
 
         pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  r, c, val);
     }
