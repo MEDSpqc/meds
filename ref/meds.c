@@ -100,7 +100,7 @@ int crypto_sign_keypair(
       LOG_MAT(G0prime, MEDS_k, MEDS_m * MEDS_n);
 
 
-      if (solve(A, B_inv[i], G0prime, false) < 0)
+      if (solve(A, B_inv[i], G0prime) < 0)
       {
         LOG("no sol");
         continue;
@@ -378,17 +378,17 @@ int crypto_sign(
       LOG_MAT_FMT(M_tilde[i], 2, MEDS_k, "M_tilde[%i]", i);
 
 
-      pmod_mat_t G0_prime[2 * MEDS_m * MEDS_n];
+      pmod_mat_t C[2 * MEDS_m * MEDS_n];
 
-      pmod_mat_mul(G0_prime, 2, MEDS_m * MEDS_n, M_tilde[i], 2, MEDS_k, G_0, MEDS_k, MEDS_m * MEDS_n);
+      pmod_mat_mul(C, 2, MEDS_m * MEDS_n, M_tilde[i], 2, MEDS_k, G_0, MEDS_k, MEDS_m * MEDS_n);
 
-      LOG_MAT(G0_prime, 2, MEDS_m * MEDS_n);
+      LOG_MAT(C, 2, MEDS_m * MEDS_n);
 
 
       pmod_mat_t A_tilde_inv[MEDS_m * MEDS_m];
       pmod_mat_t B_tilde_inv[MEDS_n * MEDS_n];
 
-      if (solve(A_tilde[i], B_tilde_inv, G0_prime, false) < 0)
+      if (solve(A_tilde[i], B_tilde_inv, C) < 0)
       {
         LOG("no sol");
         continue;
@@ -422,13 +422,17 @@ int crypto_sign(
     LOG_MAT_FMT(G_tilde_ti, MEDS_k, MEDS_m*MEDS_n, "G_tilde[%i]", i);
 
     bitstream_t bs;
-    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)];
+    uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)] = {0};
     
     bs_init(&bs, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
     for (int r = 0; r < MEDS_k; r++)
       for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
         bs_write(&bs, G_tilde_ti[r * MEDS_m*MEDS_n + j], GFq_bits);
+
+    bs_finalize(&bs);
+
+    LOG_HEX(bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
     shake256_absorb(&h_shake, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
   }
@@ -474,19 +478,6 @@ int crypto_sign(
 
         for (int j = 0; j <2*MEDS_k; j++)
           bs_write(&bs, kappa[j], GFq_bits);
-
-//        // Check if verifier has systematic system:
-//        int64_t sum = 0;
-//
-//        // Compute bottom right value of A_tilde[i] * A_inv[h[i]].
-//        for (int j = 0; j < MEDS_m; j++)
-//          sum = (sum + A_tilde[i][(MEDS_m-1)*MEDS_m + j] * A_inv[h[i]][j * MEDS_m + MEDS_m - 1]) % MEDS_p;
-//
-//        if (sum == 0)
-//        {
-//          LOG("REDO A[-1,-1] == 0");
-//          goto redo;
-//        }
       }
 
       bs_finalize(&bs);
@@ -581,7 +572,7 @@ int crypto_sign_open(
 
   path_to_stree(stree, h, path, alpha);
 
-  LOG_HEX(stree, MEDS_st_seed_bytes * SEED_TREE_size);
+  //LOG_HEX(stree, MEDS_st_seed_bytes * SEED_TREE_size);
 
   uint8_t *sigma = &stree[MEDS_st_seed_bytes * SEED_TREE_ADDR(MEDS_seed_tree_height, 0)];
 
@@ -603,6 +594,8 @@ int crypto_sign_open(
   {
     if (h[i] > 0)
     {
+      LOG("h[%i] > 0\n", i);
+
       for (int j = 0; j < 2*MEDS_k; j++)
         kappa[j] = bs_read(&bs, GFq_bits);
 
@@ -624,7 +617,7 @@ int crypto_sign_open(
       pmod_mat_t A_hat_inv[MEDS_m * MEDS_m];
       pmod_mat_t B_hat_inv[MEDS_n * MEDS_n];
 
-      if (solve(A_hat, B_hat_inv, G0_prime, true) < 0)
+      if (solve(A_hat, B_hat_inv, G0_prime) < 0)
       {
         LOG("crypto_sign_open - no sol");
         printf("no sol\n");
@@ -663,6 +656,8 @@ int crypto_sign_open(
     }
     else
     {
+      LOG("h[%i] == 0\n", i);
+
       while (1 == 1)
       {
         LOG_VEC_FMT(&sigma[i*MEDS_st_seed_bytes], MEDS_st_seed_bytes, "seeds[%i]", i);
@@ -693,11 +688,11 @@ int crypto_sign_open(
         LOG_MAT_FMT(M_hat_i, 2, MEDS_k, "M_hat[%i]", i);
 
 
-        pmod_mat_t G0_prime[2 * MEDS_m * MEDS_n];
+        pmod_mat_t C_hat[2 * MEDS_m * MEDS_n];
 
-        pmod_mat_mul(G0_prime, 2, MEDS_m * MEDS_n, M_hat_i, 2, MEDS_k, G[0], MEDS_k, MEDS_m * MEDS_n);
+        pmod_mat_mul(C_hat, 2, MEDS_m * MEDS_n, M_hat_i, 2, MEDS_k, G[0], MEDS_k, MEDS_m * MEDS_n);
 
-        LOG_MAT_FMT(G0_prime, 2, MEDS_m * MEDS_n, "G0_prime[%i]", i);
+        LOG_MAT_FMT(C_hat, 2, MEDS_m * MEDS_n, "C_hat[%i]", i);
 
 
         pmod_mat_t A_hat_i[MEDS_m * MEDS_m];
@@ -706,7 +701,7 @@ int crypto_sign_open(
         pmod_mat_t A_hat_inv[MEDS_m * MEDS_m];
         pmod_mat_t B_hat_inv[MEDS_n * MEDS_n];
 
-        if (solve(A_hat_i, B_hat_inv, G0_prime, false) < 0)
+        if (solve(A_hat_i, B_hat_inv, C_hat) < 0)
         {
           LOG("no sol");
           continue;
@@ -745,13 +740,15 @@ int crypto_sign_open(
 
     {
       bitstream_t bs;
-      uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)];
+      uint8_t bs_buf[CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8)] = {0};
 
       bs_init(&bs, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
 
       for (int r = 0; r < MEDS_k; r++)
         for (int j = MEDS_k; j < MEDS_m*MEDS_n; j++)
           bs_write(&bs, G_hat_i[r * MEDS_m*MEDS_n + j], GFq_bits);
+
+      bs_finalize(&bs);
 
       shake256_absorb(&shake, bs_buf, CEILING((MEDS_k * (MEDS_m*MEDS_n - MEDS_k)) * GFq_bits, 8));
     }

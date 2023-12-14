@@ -362,9 +362,9 @@ def PaseHash(digest, params):
 #  return A, B_inv
 
 def solve(data):
-  return solve_symb(data)
+  #return solve_symb(data)
   ##return solve_comp(data)
-  #return solve_opt(data)
+  return solve_opt(data)
 
 def solve_symb(C):
   m = C[0].nrows()
@@ -431,20 +431,17 @@ def solve_symb(C):
   return A_tilde, B_tilde_inv
 
 
-def solve_opt(P0prime):
-  m = P0prime[0].nrows()
-  n = P0prime[0].ncols()
+def solve_opt(C):
+  m = C[0].nrows()
+  n = C[0].ncols()
 
-  GFq = P0prime[0][0,0].base_ring()
+  GFq = C[0][0,0].base_ring()
 
   ###################
-  N = -P0prime[1].transpose()
-  N = N.augment(P0prime[0].transpose())
+  N = -C[1].transpose()
+  N = N.augment(C[0].transpose())
 
-  N0 = N.submatrix(0,0,N.nrows(), N.ncols())
-  N1 = N.submatrix(N.nrows()-1,0,1, N.ncols())
-
-  logging.debug(f"N:\n%s", N0)
+  logging.debug(f"N:\n%s", N)
 
   # compute systematic form of left half of the matrix
   _, _, U = N.LU()
@@ -453,35 +450,22 @@ def solve_opt(P0prime):
   
   N = M.rref().stack(U[[m],range(2*m)])
 
+  # check for systematic form
   for i in range(m):
     if N[i,i] != 1:
-      #if (i == N.nrows()-1) and partial:
-      #  continue
-      #else:
-        logging.debug(f"no sol")
-        return None, None
+      logging.debug(f"no sol")
+      return None, None
 
   logging.debug(f"N:\n%s", N)
 
 
-  tmp = N.submatrix(0, m, n, m)
-
-
-  for i in range(m-1):
-    N = N.stack(N1)
-
-
-  N1 = N.submatrix(m, m, 1, N.ncols()-m)
-  N1 = N1.stack(N.submatrix(0, m, m-2, N.ncols()-m))
-  for i in range(1, m-1):
-    for j in range(N1.ncols()):
-      N1[i,j] = 0
-
+  N1 = N.submatrix(m, m, 1, N.ncols()-m).stack(matrix(GFq, m-2, m, [0]*(m-2)*m))
   logging.debug(f"N1:\n%s", N1)
 
-  N = N.submatrix(0, m, m, m)
 
+  N = N.submatrix(0, m, m, m)
   logging.debug(f"N:\n%s", N)
+
 
   for row in range(1, m-1):
     for i in range(0, m):
@@ -497,102 +481,23 @@ def solve_opt(P0prime):
 
         N1[row, j] = diff
 
-#  for block in range(1, m):
-#    for row in range(block):
-#      for i in range(m):
-#        for j in range(m):
-#          N1[row, j+m] = N1[row, j+m] - N1[row, i] * N[i, j+m]
-#
-#      for i in range(m):
-#        N1[row, i] = N1[row, i+m]
-#        N1[row, i+m] = 0
-
   logging.debug(f"N1:\n%s", N1)
 
-  N1 = N1.submatrix(0,0,m-1, m)
 
   N1 = N1.rref()
 
   logging.debug(f"N1:\n%s", N1)
 
   
-#  logging.debug(f"tmp:\n%s", tmp)
-#
-#  for i in range(n):
-#    for j in range(n):
-#      if i != j:
-#        tmp.add_multiple_of_row(i, j, GFq.random_element())
-#
-#  logging.debug(f"tmp:\n%s", tmp)
-#
-##  tmp.add_multiple_of_row(0,n-1,1)
-##  tmp.add_multiple_of_row(0,n-2,1)
-#  tmp1 = tmp.submatrix(0,0,n-2, m)
-#
-#  tmp1 = tmp1.rref()
-#
-#  logging.debug(f"tmp1:\n%s", tmp1)
-#
-#
-#  for i in range(n):
-#    for j in range(n):
-#      if i != j:
-#        tmp.add_multiple_of_row(i, j, GFq.random_element())
-#
-#
-#  tmp2 = tmp.submatrix(0,0,n-2, m)
-#
-#  tmp2 = tmp2.rref()
-#
-#  logging.debug(f"tmp2:\n%s", tmp2)
-
-
-#  tmp = P0prime[0].transpose()
-#
-#  for i in range(n-2):
-#    for j in range(n-1):
-#      if i != j:
-#        tmp.add_multiple_of_row(i, j, GFq.random_element())
-#
-##  tmp.add_multiple_of_row(0,n-1,1)
-##  tmp.add_multiple_of_row(0,n-2,1)
-#  tmp = tmp.submatrix(0,0,n-2, m)
-#
-#  tmp = tmp.rref()
-#
-#  logging.debug(f"tmp:\n%s", tmp)
-#
-
-
-#  pivot_row = -1
-
   for pivot_row in range(m):
     if pivot_row == m-1:
       break 
     if N1[pivot_row, pivot_row] != 1:
-#      pivot_row = i
       break
 
-#  print(pivot_row, m-1)
 
   sol = [0] * (m*m + n*n)
 
-#  if pivot_row > 0:
-#    #if partial:
-#      for i in range(pivot_row):
-#        sol[2*m*n - (m-1) + i] = N1[i, pivot_row]
-#
-#      sol[2*m*n - (m-1) + pivot_row] = GFq(-1)
-#    #else:
-#    #  logging.debug(f"no sol")
-#    #  return None, None
-#  else:
-#    for i in range(m-1):
-#      sol[2*m*n - (m-1) + i] = N1[i, m-1]
-#
-#    sol[-1] = GFq(-1)
-#
-#    pivot_row = m-1
 
   for i in range(pivot_row):
     sol[2*m*n - (m-1) + i] = N1[i, pivot_row]
@@ -616,7 +521,7 @@ def solve_opt(P0prime):
   logging.debug(f"sol:\n%s", sol)
 
 
-  P = -P0prime[1].transpose()
+  P = -C[1].transpose()
 
   logging.debug(f"P01nt:\n%s", P)
 
@@ -632,7 +537,7 @@ def solve_opt(P0prime):
   logging.debug(f"sol:\n%s", sol)
 
 
-  P = -P0prime[0].transpose()
+  P = -C[0].transpose()
 
   logging.debug(f"P00nt:\n%s", P)
 
@@ -655,28 +560,24 @@ def solve_opt(P0prime):
   logging.debug(f"sol:\n%s", sol)
 
 
-  P = -P0prime[0].transpose()
+  P = -C[0].transpose()
 
   for b in reversed(range(m-1)):
     for c in reversed(range(m)):
       for r in range(n):
         sol[b*n + r] -=  P[r, c] * sol[2*m*n - (m-1) - (m-1-b)*m + c]
 
-#  logging.debug(f"sol:\n%s", sol)
-#
-#  sol[-1] = GFq(-1)
-
   ###################
 
 
   logging.debug("sol:\n%s", sol)
-  A     = matrix(GFq, m, sol[n*n:])
-  B_inv = matrix(GFq, n, sol[:n*n])
+  A_tilde     = matrix(GFq, m, sol[n*n:])
+  B_tilde_inv = matrix(GFq, n, sol[:n*n])
 
-  logging.debug(f"A:\n%s", A)
-  logging.debug(f"B_inv:\n%s", B_inv)
+  logging.debug(f"A_tilde:\n%s", A_tilde)
+  logging.debug(f"B_tilde_inv:\n%s", B_tilde_inv)
 
-  return A, B_inv
+  return A_tilde, B_tilde_inv
 
 # def solve_comp(P0prime, Amm):
 #   m = P0prime[0].nrows()

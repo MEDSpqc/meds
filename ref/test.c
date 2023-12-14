@@ -29,10 +29,23 @@ int main(int argc, char *argv[])
 
   int rounds = 1;
 
-  if (argc > 1)
-    rounds = atoi(argv[1]);
-
+  //unsigned char entropy_input[48] = {0xB5, 0x11,  0};
+  //unsigned char entropy_input[48] = {0x82, 0x9F, 0};
   unsigned char entropy_input[48] = {0};
+
+  if (argc > 1)
+  {
+    uint64_t val = atol(argv[1]);
+
+    for (int i = 0; i < 8; i++)
+      entropy_input[i] = (val >> (i*8)) & 0xff;
+  }
+
+  printf("seed: ");
+  for (int i = sizeof(entropy_input)-1; i >= 0; i--)
+    printf("%X", entropy_input[i]);
+  printf("\n");
+
 
   randombytes_init(entropy_input, NULL, 256);
 
@@ -76,7 +89,10 @@ int main(int argc, char *argv[])
     if (ret == 0)
       printf("success\n");
     else
+    {
       printf("!!! FAILED !!!\n");
+      return -1;
+    }
   }
 
   double freq = osfreq();

@@ -43,7 +43,12 @@ def check(t):
 
     assert tmp == t.sm, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(sm).decode()}"
 
-    tmp = MEDS.crypto_sign_open(t.sm)
+    try:
+      tmp = MEDS.crypto_sign_open(t.sm)
+    except meds.BadSignatureError:
+      ret += " ERROR!"
+
+      return ret
 
     assert tmp == t.msg, f"\n{binascii.hexlify(tmp).decode()}\n{binascii.hexlify(msg).decode()}"
 

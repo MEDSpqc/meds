@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "BearSSL_src_inner.h"
 #include "fips202.h"
 
 #include "log.h"
@@ -80,7 +81,7 @@ redo:
         // swap
         for (int r2 = r+1; r2 < M_r; r2++)
         {
-          uint64_t Mrr = pmod_mat_entry(tmp, M_r, M_c, r, r);
+          int32_t Mrr = pmod_mat_entry(tmp, M_r, M_c, r, r);
 
           for (int c = r; c < M_c; c++)
           {
@@ -88,7 +89,7 @@ redo:
 
             uint64_t Mrc = pmod_mat_entry(tmp, M_r, M_c, r, c);
 
-            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * (Mrr == 0)) % MEDS_p);
+            pmod_mat_set_entry(tmp, M_r, M_c, r, c, (Mrc + val * EQ0(Mrr)) % MEDS_p);
           }
         }
 
@@ -120,7 +121,7 @@ redo:
 
             val = tmp1 - val;
 
-            val += MEDS_p * (val < 0);
+            val += MEDS_p * LT0(val);
 
             pmod_mat_set_entry(tmp, M_r, M_c,  r2, c, val);
           }
@@ -137,8 +138,19 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
   if (len_h < MEDS_t)
     return -1;
 
-  //LOG_VEC(digest, MEDS_digest_bytes);
-  //LOG_VAL(digest_len);
+#ifdef DEBUG
+  fprintf(stderr, "(%s) digest: [", __func__);
+  for (int i = 0; i < MEDS_digest_bytes; i++)
+  {
+    fprintf(stderr, "%i", digest[i]);
+    if (i < MEDS_digest_bytes-1)
+      fprintf(stderr, ", ");
+  }
+  fprintf(stderr, "]\n");
+  fprintf(stderr, "\n");
+  fprintf(stderr, "(%s) digest len: %i\n", __func__, digest_len);
+  fprintf(stderr, "\n");
+#endif
 
   keccak_state shake;
 
@@ -168,7 +180,10 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
     if (h[pos] > 0)
       continue;
 
-    //LOG("pos: %lu", pos);
+#ifdef DEBUG
+    fprintf(stderr, "(%s) pos: %lu\n", __func__, pos);
+    fprintf(stderr, "\n");
+#endif
 
     uint8_t val = 0;
 
@@ -178,7 +193,10 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
       val = val & MEDS_s_mask;
     }
 
-    //LOG("p: %lu  v: %u", pos, val);
+#ifdef DEBUG
+    fprintf(stderr, "(%s) p: %lu  v: %u\n", __func__, pos, val);
+    fprintf(stderr, "\n");
+#endif
 
     h[pos] = val;
 
@@ -188,7 +206,7 @@ int parse_hash(uint8_t *digest, int digest_len, uint8_t *h, int len_h)
   return 0;
 }
 
-int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
+int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime) //, bool partial)
 {
   _Static_assert (MEDS_n == MEDS_m+1, "solve_symb requires MEDS_n == MEDS_m+1");
 
@@ -236,37 +254,37 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool parti
   int r = 0;
 
   // solve system
-  if ((r = pmod_mat_syst_ct_partial(rsys, (2 * MEDS_m * MEDS_n), (MEDS_m * MEDS_m + MEDS_n * MEDS_n), partial)) != 0)
+  if ((r = pmod_mat_syst_ct_partial(rsys, (2 * MEDS_m * MEDS_n), (MEDS_m * MEDS_m + MEDS_n * MEDS_n), (2 * MEDS_m * MEDS_n))) != 0)
   {
-    if (partial)
-    {
-      //LOG_MAT(rsys, (2 * MEDS_m * MEDS_n -1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
+    //if (partial)
+    //{
+    //  //LOG_MAT(rsys, (2 * MEDS_m * MEDS_n -1), (MEDS_m * MEDS_m + MEDS_n * MEDS_n));
 
-      GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n];
+    //  GFq_t sol[MEDS_m * MEDS_m + MEDS_n * MEDS_n];
 
-      for (int i = 0; i < r; i++)
-        sol[i] = rsys[i * (MEDS_m * MEDS_m + MEDS_n * MEDS_n) + r];
+    //  for (int i = 0; i < r; i++)
+    //    sol[i] = rsys[i * (MEDS_m * MEDS_m + MEDS_n * MEDS_n) + r];
 
-      sol[r] = MEDS_p - 1;
+    //  sol[r] = MEDS_p - 1;
 
-      for (int i = r+1; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
-        sol[i] = 0;
+    //  for (int i = r+1; i < MEDS_m * MEDS_m + MEDS_n * MEDS_n; i++)
+    //    sol[i] = 0;
 
-      LOG_VEC(sol, MEDS_m * MEDS_m + MEDS_n * MEDS_n);
+    //  LOG_VEC(sol, MEDS_m * MEDS_m + MEDS_n * MEDS_n);
 
 
-      for (int i = 0; i < MEDS_m*MEDS_m; i++)
-        A[i] = sol[i + MEDS_n*MEDS_n];
+    //  for (int i = 0; i < MEDS_m*MEDS_m; i++)
+    //    A[i] = sol[i + MEDS_n*MEDS_n];
 
-      for (int i = 0; i < MEDS_n*MEDS_n; i++)
-        B_inv[i] = sol[i];
+    //  for (int i = 0; i < MEDS_n*MEDS_n; i++)
+    //    B_inv[i] = sol[i];
 
-      LOG_MAT(A, MEDS_m, MEDS_m);
-      LOG_MAT(B_inv, MEDS_n, MEDS_n);
+    //  LOG_MAT(A, MEDS_m, MEDS_m);
+    //  LOG_MAT(B_inv, MEDS_n, MEDS_n);
 
-      return 0;
-    }
-    else
+    //  return 0;
+    //}
+    //else
     {
       LOG("no sol");
       return -1;
@@ -298,7 +316,7 @@ int solve_symb(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool parti
   return 0;
 }
 
-int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partial)
+int solve_opt(pmod_mat_t *A_tilde, pmod_mat_t *B_tilde_inv, pmod_mat_t *G0prime) //, bool partial)
 {
   _Static_assert (MEDS_n == MEDS_m+1, "solve_opt requires MEDS_n == MEDS_m+1");
 
@@ -318,20 +336,13 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   LOG_MAT(N, MEDS_n, 2 * MEDS_m);
 
 
-  // Systemize core sub-system.
-  // We can tolarate partial solving on verifier side as long as we can pivot all except the last row.
+
+  // Systemize core sub-system while pivoting all but the last row.
   int piv;
-  if ((piv = pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, partial)) != 0)
+  if ((piv = pmod_mat_syst_ct_partial(N, MEDS_n, 2 * MEDS_m, MEDS_n-1)) != 0)
   {
-    if (partial)
-    {
-      if (piv != MEDS_n-1)
-      {
-        return -1;  // This should not happen for a valid signaure.
-      }
-    }
-    else
-      return -1;
+    LOG("no sol %i", __LINE__);
+    return -1;
   }
 
   LOG_MAT(N, MEDS_n, 2 * MEDS_m);
@@ -346,7 +357,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
           pmod_mat_entry(N, MEDS_n, 2 * MEDS_m, MEDS_n-1, MEDS_m + i));
     }
 
-  LOG_MAT(N1, MEDS_m-1, 2 * MEDS_m);
+  LOG_MAT(N1, MEDS_m-1, MEDS_m);
 
 
   // Remove front diagonale of core sub-system.
@@ -386,40 +397,34 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
   int N1_r;
 
   // Sytemize 2nd sub-system.
-  if ((N1_r = pmod_mat_syst_ct_partial(N1, MEDS_m-1, MEDS_m, partial)) != 0)
+  N1_r = pmod_mat_rref(N1, MEDS_m-1, MEDS_m);
+
+  if (N1_r == -1)
   {
-    // The verifier can continune if the 2nd sub-system only partially systemizes.
-    if (partial)
-    {
-      LOG_MAT(N1, MEDS_m-1, MEDS_m);
-
-      // Fill in solutions from the 2nd sub-system.
-      for (int i = 0; i < N1_r; i++)
-        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, N1_r);
-
-      // Fix solution at pivot location to -1.
-      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + N1_r] = MEDS_p - 1;
-
-      // Remaining spots resolve to zero.
-      for (int i = N1_r+1; i < MEDS_m-1; i++)
-        sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = 0;
-    }
-    else
-      return -1;
+    LOG("RREF failed. Redo.\n");
+    return -1;
   }
-  else
-  {
-    LOG_MAT(N1, MEDS_m-1, MEDS_m);
 
-    // Fill in solutions from the 2nd sub-system.
-    for (int i = 0; i < MEDS_m-1; i++)
-      sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, MEDS_m-1);
+  LOG_MAT(N1, MEDS_m-1, MEDS_m);
 
-    // Fix to -1.
-    sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = MEDS_p - 1;
+//  LOG("pivot column: %i\n", N1_r);
+//  N1_r = MEDS_m-1;
+  LOG("pivot column: %i\n", N1_r);
 
-    N1_r = MEDS_m-1;
-  }
+
+  // Fill in solutions from the 2nd sub-system.
+  for (int i = 0; i < MEDS_m-1; i++)
+    sol[2*MEDS_m*MEDS_n - (MEDS_m-1) + i] = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, i, MEDS_m-1);
+
+  // Fix to -1.
+  sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = MEDS_p - 1;
+
+  sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - 1] = sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - MEDS_m + N1_r];
+
+  sol[MEDS_m*MEDS_m + MEDS_n*MEDS_n - MEDS_m + N1_r] = MEDS_p - 1;
+
+
+  LOG_VEC(sol, MEDS_m*MEDS_m + MEDS_n*MEDS_n);
 
   LOG_MAT(N, MEDS_n-1, MEDS_m);
 
@@ -470,7 +475,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
     for (int r = 0; r < MEDS_n; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(P01nt, MEDS_n, MEDS_m, r, c);
-      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, N1_r);
+      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, MEDS_m-1); //N1_r);
 
       uint64_t prod = (tmp1 * tmp2) % MEDS_p;
 
@@ -506,7 +511,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
     for (int r = 0; r < MEDS_n; r++)
     {
       uint64_t tmp1 = pmod_mat_entry(P00nt, MEDS_n, MEDS_m, r, c);
-      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, N1_r);
+      uint64_t tmp2 = pmod_mat_entry(N1, MEDS_m-1, MEDS_m, c, MEDS_m-1); //N1_r);
 
       uint64_t prod = (tmp1 * tmp2) % MEDS_p;
 
@@ -563,13 +568,13 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
 
   for (int i = 0; i < MEDS_m*MEDS_m; i++)
-    A[i] = sol[i + MEDS_n*MEDS_n];
+    A_tilde[i] = sol[i + MEDS_n*MEDS_n];
 
   for (int i = 0; i < MEDS_n*MEDS_n; i++)
-    B_inv[i] = sol[i];
+    B_tilde_inv[i] = sol[i];
 
-  LOG_MAT(A, MEDS_m, MEDS_m);
-  LOG_MAT(B_inv, MEDS_n, MEDS_n);
+  LOG_MAT(A_tilde, MEDS_m, MEDS_m);
+  LOG_MAT(B_tilde_inv, MEDS_n, MEDS_n);
 
   return 0;
 }
@@ -635,7 +640,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
       val = tmp0 - val;
 
-      val += MEDS_p * (val < 0);
+      val += MEDS_p * LT0(val);
 
       pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  MEDS_n-1, c, val);
     }
@@ -684,7 +689,7 @@ int solve_opt(pmod_mat_t *A, pmod_mat_t *B_inv, pmod_mat_t *G0prime, bool partia
 
         val = tmp1 - val;
 
-        val += MEDS_p * (val < 0);
+        val += MEDS_p * LT0(val);
 
         pmod_mat_set_entry(M, MEDS_n, MEDS_m + MEDS_m + 2,  r, c, val);
     }

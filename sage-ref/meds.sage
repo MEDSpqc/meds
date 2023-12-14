@@ -107,6 +107,7 @@ class MEDSbase:
     pk = sigma_G0
 
     for Gi in G[1:]:
+      print(Gi)
       pk += CompressG(Gi, k, m, n)
 
     logging.debug(f"sigma_G0 (pk):\n%s", [int(i) for i in pk[:param.pub_seed_bytes]])
@@ -199,8 +200,9 @@ class MEDSbase:
 
     A_tilde = [None]*t
     B_tilde = [None]*t
-    G_tilde = [None]*t
     M_tilde = [None]*t
+
+    comp = bytes()
 
     for i in range(t):
       while True:
@@ -216,48 +218,40 @@ class MEDSbase:
 
         shake = SHAKE256.new()
         shake.update(sigma_M_tilde)
-      
-        while True:
-          M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
 
-          C = M_tilde[i] * G_0
+        M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
 
-          #tmp = M_tilde[i].rref()
-          tmp = C.rref()
-
-          if tmp[0,0] == 1 and tmp[0,1] == 0 and tmp[1,0] == 0 and tmp[1,1] == 1:
-
-            C = [matrix(GFq, m, n, row) for row in C.rows()]
-
-            if C[0].rank() != m:
-              continue
-
-            if C[1].rank() != m:
-              continue
-
-            break
-              
-
-
-#        M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(sigma_M_tilde, 2*k, GFq))
-#
-#        print(M_tilde[i].rank())
-#
-#        while (M_tilde[i].rank() < 2):
-#          M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(sigma_M_hat_i, 2*k, GFq))
-#
-#
         logging.debug(f"M_tilde[{i}]:\n%s", M_tilde[i])
-#
-#        if (M_tilde[i].rank() != M_tilde[i].nrows()):
-#          continue
 
-
-#        G0_prime = M_tilde[i] * G_0
-#
-#        logging.debug(f"G0_prime:\n%s", G0_prime)
+        C = M_tilde[i] * G_0
 
         logging.debug(f"C:\n%s", C)
+
+        C = [matrix(GFq, m, n, row) for row in C.rows()]
+      
+        #while True:
+        #  M_tilde[i] = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
+
+        #  C = M_tilde[i] * G_0
+
+        #  #tmp = M_tilde[i].rref()
+        #  tmp = C.rref()
+
+        #  if tmp[0,0] == 1 and tmp[0,1] == 0 and tmp[1,0] == 0 and tmp[1,1] == 1:
+
+        #    C = [matrix(GFq, m, n, row) for row in C.rows()]
+
+        #    if C[0].rank() != m:
+        #      continue
+
+        #    if C[1].rank() != m:
+        #      continue
+
+        #    break
+              
+        #logging.debug(f"M_tilde[{i}]:\n%s", M_tilde[i])
+
+        #logging.debug(f"C:\n%s", C)
 
         #A_tilde[i], B_tilde_inv = solve([matrix(GFq, m, n, G0_prime.rows()[j]) for j in range(2)])
         A_tilde[i], B_tilde_inv = solve(C)
@@ -281,16 +275,16 @@ class MEDSbase:
         logging.debug(f"A_tilde[{i}]:\n%s", A_tilde[i])
         logging.debug(f"B_tilde[{i}]:\n%s", B_tilde[i])
 
-        G_tilde[i] = pi(A_tilde[i], B_tilde[i], G_0)
+        G_tilde_i = pi(A_tilde[i], B_tilde[i], G_0)
 
-        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
+        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde_i)
 
-        G_tilde[i] = SF(G_tilde[i])
+        G_tilde_i = SF(G_tilde_i)
 
-        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde[i])
+        logging.debug(f"G_tilde[{i}]:\n%s", G_tilde_i)
 
         # check if we got systematic form
-        if G_tilde[i] == None:
+        if G_tilde_i == None:
           # if no systematic form loop to try again for this index
           logging.debug(f"redo G[{i}]")
           continue
@@ -298,14 +292,13 @@ class MEDSbase:
         # G_tilde[i] is in systematic form; break while loop
         break
 
+     bs_buf  = Compress(G_tilde_i[:,k:])
+     logging.debug(f"bs_buf:\n0x%s", bs_buf.hex())
+     comp += bs_buf
+
 
     if type(msg) == str:
       msg = msg.encode('utf8')
-
-    comp = bytes()
-
-    for G_tilde_i in G_tilde:
-      comp += Compress(G_tilde_i[:,k:])
 
     d = H(self.params)(comp + msg)
 
@@ -396,6 +389,8 @@ class MEDSbase:
 
     for i in range(t):
       if h[i] > 0:
+        logging.debug("h[%i] > 0\n", i);
+
         kappa_i = Decompress(kappa[f_ms : f_ms + l_Fq_kk], GFq, 2, k)
         f_ms += l_Fq_kk
 
@@ -439,6 +434,8 @@ class MEDSbase:
         logging.debug(f"G_hat[{i}]:\n%s", G_hat[i])
 
       else:
+        logging.debug("h[%i] == 0\n", i);
+
         logging.debug(f"seeds[{i}]:\n%s", [int(v) for v in sigma[i]])
 
         while True:
@@ -462,24 +459,34 @@ class MEDSbase:
 #            if tmp[0,0] == 1 and tmp[0,1] == 0 and tmp[1,0] == 0 and tmp[1,1] == 1:
 #              break
 
-          while True:
-            M_hat_i = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
+          M_hat_i = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
+
+          logging.debug(f"M_hat[{i}]:\n%s", M_hat_i)
   
-            C_hat = M_hat_i * G[0]
+          C_hat = M_hat_i * G[0]
+
+          logging.debug(f"C_hat[{i}]:\n%s", C_hat)
+
+          C_hat = [matrix(GFq, m, n, row) for row in C_hat.rows()]
+
+          #while True:
+          #  M_hat_i = matrix(GFq, 2, k, ExpandFqs(shake, 2*k, GFq))
   
-            tmp = C_hat.rref()
+          #  C_hat = M_hat_i * G[0]
   
-            if tmp[0,0] == 1 and tmp[0,1] == 0 and tmp[1,0] == 0 and tmp[1,1] == 1:
+          #  tmp = C_hat.rref()
   
-              C_hat = [matrix(GFq, m, n, row) for row in C_hat.rows()]
+          #  if tmp[0,0] == 1 and tmp[0,1] == 0 and tmp[1,0] == 0 and tmp[1,1] == 1:
   
-              if C_hat[0].rank() != m:
-                continue
+          #    C_hat = [matrix(GFq, m, n, row) for row in C_hat.rows()]
   
-              if C_hat[1].rank() != m:
-                continue
+          #    if C_hat[0].rank() != m:
+          #      continue
   
-              break
+          #    if C_hat[1].rank() != m:
+          #      continue
+  
+          #    break
  
 
 #          M_hat_i = matrix(GFq, 2, k, ExpandFqs(sigma_M_hat_i, 2*k, GFq))
@@ -487,7 +494,6 @@ class MEDSbase:
 #          while (M_hat_i.rank() < 2):
 #            M_hat_i = matrix(GFq, 2, k, ExpandFqs(sigma_M_hat_i, 2*k, GFq))
 
-          logging.debug(f"M_hat[{i}]:\n%s", M_hat_i)
 
 #          if (M_hat_i.rank() != M_hat_i.nrows()):
 #            continue
